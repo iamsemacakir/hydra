@@ -329,6 +329,15 @@
   margin-left: -0.035em;
 }
 
+/* The full stop is the map's status light: it turns red while the story shows a failure (HeroStory.tsx). */
+.livePeriod {
+  transition: color 700ms ease;
+}
+
+:global(html[data-hydra-incident="true"]) .livePeriod {
+  color: var(--hy-red-fill);
+}
+
 .heroRow {
   display: grid;
   gap: 28px;

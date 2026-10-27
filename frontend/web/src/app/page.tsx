@@ -70,7 +70,9 @@ export default function LandingPage() {
                 <span className={s.rise}>Every service.</span>
               </span>
               <span className={s.mask}>
-                <span className={s.rise}>One live map.</span>
+                <span className={s.rise}>
+                  One live map<span className={s.livePeriod}>.</span>
+                </span>
               </span>
             </h1>
 

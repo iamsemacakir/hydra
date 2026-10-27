@@ -104,7 +104,17 @@ export function ArrowUpRight(props: IconProps) {
 export function CheckIcon(props: IconProps) {
   return (
     <Icon {...props}>
-      <path d="M5 12.5l4.5 4.5L19 7.5" strokeWidth="2.25" />
+      <path d="M5 12.5l4.5 4.5L19 7.5" strokeWidth="2.25" pathLength={1} />
+    </Icon>
+  );
+}
+
+/** A pointer: used for the hint that the map can be clicked. */
+export function PointerIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M7 4.5l11 6.2-4.6 1.3-1.9 4.6z" />
+      <path d="M13.4 12l4.1 4.1" />
     </Icon>
   );
 }
