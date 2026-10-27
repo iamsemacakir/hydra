@@ -1,11 +1,24 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Link from "next/link";
-import { auth, signOut, type BackendSession } from "@/auth";
+import { themeInitScript } from "@/components/landing/theme";
 
 export const metadata: Metadata = { title: "DevOpsPlatform", description: "Operational topology and dependency impact" };
 
-export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const session = await auth() as BackendSession | null;
-  return <html lang="en"><body>{session?.user && !session.error && <header className="app-header"><div className="app-header-inner"><Link href="/projects" className="app-brand">DevOpsPlatform</Link><div className="app-account"><span>{session.user.name ?? session.user.email ?? "Signed in"}</span><form action={async () => { "use server"; await signOut({ redirectTo: "/signin" }); }}><button className="button" type="submit">Sign out</button></form></div></div></header>}{children}</body></html>;
+/*
+ * The root layout no longer reads the session, so the public landing page can be rendered
+ * statically. The signed-in header now lives in app/projects/layout.tsx.
+ *
+ * The inline script runs before the first paint and sets data-landing-pref / data-landing-theme
+ * on <html>, so the landing page never flashes the wrong theme. suppressHydrationWarning is
+ * needed because those attributes exist only on the client's copy of <html>.
+ */
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
 }

@@ -179,3 +179,61 @@ h2 { letter-spacing:-.025em; }
 @media(max-width:650px) { .board-columns,.form-row { grid-template-columns:1fr; }.work-drawer { padding:18px; } }
 @media(max-width:900px) { .workspace-main { grid-template-columns:1fr; height:auto; }.graph-area { height:540px; }.detail-panel { max-height:500px; border-left:0; border-top:1px solid var(--border); }.timeline-items { grid-template-columns:repeat(2,1fr); }.two-col { grid-template-columns:1fr; } }
 @media(max-width:600px) { .page { padding:25px 18px 70px; }.workspace { padding:14px; }.workspace-header { display:block; }.header-status { margin-top:16px; flex-wrap:wrap; }.stats { grid-template-columns:1fr 1fr; }.timeline-items { grid-template-columns:1fr; }.toolbar-hint { display:none; }.graph-area { height:460px; } }
+
+/* ---------------------------------------------------------------------
+   Landing page (src/components/landing)
+
+   --lp-* tokens. Light is the default. The dark values apply when the theme script
+   (src/components/landing/theme.ts) sets data-landing-theme="dark" on <html>. Neutrals are
+   derived from OKLCH hue 262 at low chroma, so they lean slightly cool instead of pure grey.
+   Only the landing page reads these tokens; the signed-in app keeps the tokens above.
+   --------------------------------------------------------------------- */
+:root {
+  --lp-bg: #f6f8fa;
+  --lp-surface: #fdfeff;
+  --lp-surface-2: #edeff4;
+  --lp-line: #dde0e4;
+  --lp-line-strong: #babec4;
+  --lp-edge: #82868f;
+  --lp-ink: #10141a;
+  --lp-ink-2: #484d56;
+  --lp-ink-3: #616670;
+  --lp-inverse: #10141a;
+  --lp-on-inverse: #f8f9fc;
+  --lp-signal: #cb3814;
+  --lp-signal-soft: #ffe7dd;
+  --lp-shadow-stage: 0 1px 2px rgb(16 20 26 / 6%), 0 24px 48px -16px rgb(16 20 26 / 16%);
+  --lp-radius-sm: 8px;
+  --lp-radius-md: 12px;
+  --lp-radius-lg: 16px;
+  --lp-radius-xl: 24px;
+  --lp-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --lp-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --lp-dur-press: 160ms;
+  --lp-dur-ui: 240ms;
+  --lp-dur-reveal: 500ms;
+}
+:root[data-landing-theme="dark"] {
+  --lp-bg: #0c0e12;
+  --lp-surface: #15171c;
+  --lp-surface-2: #1f2227;
+  --lp-line: #2b2e34;
+  --lp-line-strong: #464b52;
+  --lp-edge: #63676f;
+  --lp-ink: #f0f2f4;
+  --lp-ink-2: #a7abb3;
+  --lp-ink-3: #888c94;
+  --lp-inverse: #f0f2f4;
+  --lp-on-inverse: #0d0f13;
+  --lp-signal: #ff874c;
+  --lp-signal-soft: #3e1d13;
+  --lp-shadow-stage: 0 1px 2px rgb(0 0 0 / 40%), 0 24px 48px -16px rgb(0 0 0 / 60%);
+}
+/* While the landing page is on screen, <html> takes over the page background and color scheme
+   (scrollbars, overscroll) and anchor links scroll smoothly below the sticky navigation. */
+html:has([data-landing]) { background:var(--lp-bg); color-scheme:light; scroll-behavior:smooth; scroll-padding-top:88px; }
+html[data-landing-theme="dark"]:has([data-landing]) { color-scheme:dark; }
+html:has([data-landing]) body { background:transparent; }
+html:has([data-landing])::view-transition-old(root),
+html:has([data-landing])::view-transition-new(root) { animation-duration:320ms; animation-timing-function:var(--lp-ease-out); }
+@media (prefers-reduced-motion: reduce) { html:has([data-landing]) { scroll-behavior:auto; } }
