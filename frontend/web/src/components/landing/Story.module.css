@@ -1,0 +1,1059 @@
+/*
+ * The hero story. The stage is decided by its own width (container queries), not the viewport:
+ *   split   (>= 1080px): the file on the left, Hydra's map on the right, joined by a pipe.
+ *   overlay (< 1080px):  one thing at a time in the same frame; the file gives way to the map.
+ *   tall    (< 600px):   the map is laid out top to bottom with labels on the right.
+ * State lives in data attributes on .story: data-phase (what is happening) and data-running.
+ * Colour and type tokens come from theme.css.
+ */
+
+.story {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --line-h: 22px;
+  --code-size: 13px;
+  --edge-w: 2.1;
+  --panel: color-mix(in srgb, var(--hy-raised) 45%, var(--hy-stage));
+  display: grid;
+  gap: clamp(12px, 1.6vw, 20px);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- Frame and stage ---------- */
+
+.frame {
+  container: story / inline-size;
+}
+
+.stage {
+  --depth: 0;
+  position: relative;
+  padding: clamp(14px, 2.1cqi, 28px);
+  border: 1px solid var(--hy-line);
+  border-radius: clamp(20px, 2.4cqi, 32px);
+  background: var(--hy-stage);
+  box-shadow: 0 40px 80px -56px rgb(0 0 0 / 0.35);
+  transform-style: preserve-3d;
+}
+
+.panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "head"
+    "cell";
+  row-gap: 12px;
+  transform-style: preserve-3d;
+}
+
+.codePane {
+  grid-area: cell;
+  align-self: center;
+  transform-style: preserve-3d;
+}
+
+.link {
+  display: none;
+}
+
+.mapPane {
+  display: contents;
+}
+
+.mapHead {
+  grid-area: head;
+}
+
+.canvas {
+  grid-area: cell;
+}
+
+@container story (min-width: 1080px) {
+  .panes {
+    grid-template-columns: minmax(0, 0.62fr) 72px minmax(0, 1fr);
+    grid-template-areas: "code link map";
+    align-items: center;
+  }
+
+  .codePane {
+    grid-area: code;
+  }
+
+  .link {
+    display: block;
+    grid-area: link;
+  }
+
+  .mapPane {
+    display: block;
+    grid-area: map;
+    position: relative;
+    transform-style: preserve-3d;
+  }
+
+  .mapHead {
+    position: absolute;
+    z-index: 3;
+    top: 14px;
+    left: 18px;
+    right: 18px;
+  }
+}
+
+/* ---------- The file ---------- */
+
+.window {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--hy-line);
+  border-radius: clamp(14px, 1.6cqi, 18px);
+  background: var(--hy-raised);
+  box-shadow: 0 30px 60px -40px rgb(0 0 0 / 0.45);
+  transform: translateZ(calc(var(--depth) * 28px));
+}
+
+.windowBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--hy-line);
+  font-size: 13px;
+}
+
+.fileIcon {
+  width: 16px;
+  height: 16px;
+  color: var(--hy-muted);
+}
+
+.fileName {
+  font-family: var(--hy-code);
+  font-size: 12.5px;
+  color: var(--hy-ink);
+}
+
+.readOnly {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  color: var(--hy-muted);
+  font-size: 12.5px;
+}
+
+.readOnly svg {
+  width: 14px;
+  height: 14px;
+}
+
+.code {
+  position: relative;
+  padding: 14px 0 18px;
+  font-family: var(--hy-code);
+  font-size: var(--code-size);
+  line-height: var(--line-h);
+  font-variant-ligatures: none;
+  transition: opacity 380ms var(--ease-out);
+}
+
+.line {
+  display: flex;
+  height: var(--line-h);
+  white-space: pre;
+}
+
+.lineNumber {
+  flex: none;
+  width: 46px;
+  padding-right: 18px;
+  text-align: right;
+  color: var(--hy-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.lineCode {
+  position: relative;
+  display: inline-flex;
+}
+
+.typed {
+  display: inline-block;
+}
+
+.service {
+  color: var(--hy-ink);
+  font-weight: 600;
+}
+
+.key {
+  color: var(--hy-muted);
+}
+
+.value {
+  color: var(--hy-ink);
+}
+
+.punct {
+  color: var(--hy-faint);
+}
+
+.caret {
+  position: absolute;
+  top: 18%;
+  bottom: 18%;
+  left: calc(var(--indent) * 1ch);
+  width: 2px;
+  border-radius: 1px;
+  background: var(--hy-ink);
+  opacity: 0;
+}
+
+.scan {
+  position: absolute;
+  top: 14px;
+  left: 0;
+  right: 0;
+  height: var(--line-h);
+  background: color-mix(in srgb, var(--hy-ink) 8%, transparent);
+  box-shadow: inset 2px 0 0 var(--hy-ink);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.story[data-phase="clear"] .code {
+  opacity: 0;
+}
+
+/* Typing: each line is revealed one character at a time, and the caret walks with it. */
+.story[data-phase="type"] .typed {
+  animation-name: storyType;
+  animation-duration: var(--d);
+  animation-timing-function: steps(var(--n), end);
+  animation-delay: var(--start);
+  animation-fill-mode: both;
+}
+
+.story[data-phase="type"] .lineNumber {
+  animation-name: storyAppear;
+  animation-duration: 1ms;
+  animation-delay: var(--start);
+  animation-fill-mode: both;
+}
+
+.story[data-phase="type"] .caret {
+  animation-name: storyCaret;
+  animation-duration: var(--d);
+  animation-timing-function: steps(var(--n), end);
+  animation-delay: var(--start);
+}
+
+@keyframes storyType {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes storyAppear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes storyCaret {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(calc(var(--n) * 1ch));
+  }
+}
+
+/* Reading: one pass over the file. */
+.story[data-phase="read"] .scan {
+  animation-name: storyScan;
+  animation-duration: 1250ms;
+  animation-timing-function: var(--ease-in-out);
+  animation-delay: 120ms;
+  animation-fill-mode: both;
+}
+
+@keyframes storyScan {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  10%,
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(calc((var(--lines) - 1) * var(--line-h)));
+  }
+}
+
+/* After it is read, the file steps back so the map can lead. */
+@container story (min-width: 1080px) {
+  .window {
+    transition: opacity 600ms var(--ease-out);
+  }
+
+  .story:is(
+      [data-phase="map"],
+      [data-phase="check"],
+      [data-phase="fail"],
+      [data-phase="spread1"],
+      [data-phase="spread2"],
+      [data-phase="spread3"],
+      [data-phase="recover"],
+      [data-phase="calm"]
+    )
+    .window {
+    opacity: 0.55;
+  }
+}
+
+/* ---------- The pipe between file and map (split layout only) ---------- */
+
+.link {
+  position: relative;
+  align-self: center;
+  height: 12px;
+}
+
+.linkLine {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 6px;
+  border-top: 1.5px dashed var(--hy-edge);
+}
+
+.packet {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--hy-ink);
+  opacity: 0;
+}
+
+.port {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  border: 1.5px solid var(--hy-ink);
+  border-radius: 50%;
+  background: var(--hy-stage);
+  transition: background-color 400ms ease;
+}
+
+.story:not([data-phase="clear"], [data-phase="type"]) .port {
+  background: var(--hy-ink);
+}
+
+.story[data-phase="read"] .packet {
+  animation-name: storyPacket;
+  animation-duration: 900ms;
+  animation-timing-function: var(--ease-in-out);
+  animation-delay: calc(220ms + var(--i) * 170ms);
+  animation-fill-mode: both;
+}
+
+.story[data-phase="read"] .port {
+  animation-name: storyPort;
+  animation-duration: 700ms;
+  animation-timing-function: var(--ease-out);
+  animation-delay: 1000ms;
+}
+
+@keyframes storyPacket {
+  0% {
+    opacity: 0;
+    transform: translateX(0) scale(0.6);
+  }
+  18% {
+    opacity: 1;
+    transform: translateX(10px) scale(1);
+  }
+  82% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(60px) scale(0.6);
+  }
+}
+
+@keyframes storyPort {
+  50% {
+    transform: scale(1.45);
+  }
+}
+
+/* ---------- The map ---------- */
+
+.mapHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 14px;
+  min-height: 36px;
+  font-size: 13px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--hy-ink);
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.brandMark {
+  width: 18px;
+  height: 18px;
+}
+
+.status {
+  display: inline-flex;
+  min-width: 0;
+  color: var(--hy-muted);
+}
+
+.statusText {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  animation: storyFadeIn 460ms var(--ease-out) both;
+}
+
+.statusText svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+}
+
+.status[data-icon="alert"] {
+  color: var(--hy-red);
+  font-weight: 600;
+}
+
+@keyframes storyFadeIn {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}
+
+.canvas {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  border: 1px solid var(--hy-line);
+  border-radius: clamp(14px, 1.6cqi, 20px);
+  background-color: var(--panel);
+  background-image: radial-gradient(circle, var(--hy-dot) 1.1px, transparent 1.7px);
+  background-position: center;
+  background-size: 24px 24px;
+  transform-style: preserve-3d;
+  transition: opacity 500ms var(--ease-out);
+}
+
+.edges {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.edgesTall {
+  display: none;
+}
+
+.edgeLine,
+.edgePulse {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.edgeLine {
+  stroke: var(--hy-edge);
+  stroke-width: var(--edge-w);
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  transition:
+    stroke-dashoffset 320ms var(--ease-out),
+    stroke 600ms ease,
+    opacity 500ms ease;
+}
+
+.edge[data-state="hidden"] .edgeLine {
+  stroke-dashoffset: 1;
+}
+
+.story[data-phase="map"] .edgeLine {
+  transition:
+    stroke-dashoffset 750ms var(--ease-in-out) calc(330ms + var(--edge-order) * 170ms),
+    stroke 600ms ease,
+    opacity 500ms ease;
+}
+
+.edge[data-state="impact"] .edgeLine {
+  stroke: var(--hy-red);
+}
+
+.edge[data-state="quiet"] .edgeLine {
+  opacity: 0.4;
+}
+
+/* The failure travels against the arrow: from the failing service back to whatever depends on it. */
+.edgePulse {
+  stroke: var(--hy-red);
+  stroke-width: calc(var(--edge-w) * 2.4);
+  stroke-dasharray: 0.12 1.3;
+  stroke-dashoffset: -1;
+  opacity: 0;
+}
+
+.edge[data-state="charging"] .edgePulse {
+  animation-name: storyPulse;
+  animation-duration: 720ms;
+  animation-timing-function: var(--ease-in-out);
+  animation-delay: 30ms;
+}
+
+.story[data-phase="fail"] .edge[data-state="charging"] .edgePulse {
+  animation-delay: 420ms;
+}
+
+@keyframes storyPulse {
+  0% {
+    stroke-dashoffset: -1;
+    opacity: 0;
+  }
+  15%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0.12;
+    opacity: 0;
+  }
+}
+
+/* A service: a point, its name and a small badge. */
+.node {
+  position: absolute;
+  left: calc(var(--wx) * 1%);
+  top: calc(var(--wy) * 1%);
+  z-index: 2;
+  width: 0;
+  height: 0;
+  transform: translateZ(calc(var(--depth) * 14px));
+  transition: opacity 500ms ease;
+}
+
+.node[data-bystander="true"] {
+  opacity: 0.62;
+}
+
+.nodeBody {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, -7px);
+}
+
+.point {
+  position: relative;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--hy-ink);
+  border-radius: 50%;
+  background: var(--panel);
+  transition:
+    opacity 420ms var(--ease-out),
+    transform 650ms var(--ease-expo),
+    background-color 500ms ease,
+    border-color 500ms ease;
+}
+
+.point::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border: 2px solid var(--hy-red-fill);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  transition:
+    opacity 500ms var(--ease-out),
+    transform 650ms var(--ease-expo),
+    filter 500ms var(--ease-out);
+}
+
+.name {
+  color: var(--hy-ink);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.node[data-role="hidden"] .point,
+.node[data-role="hidden"] .label {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .node[data-role="hidden"] .point {
+    transform: scale(0.6);
+  }
+
+  .node[data-role="hidden"] .label {
+    filter: blur(3px);
+    transform: translateY(6px);
+  }
+}
+
+.story[data-phase="map"] .point {
+  transition-delay: calc(170ms + var(--order) * 170ms);
+}
+
+.story[data-phase="map"] .label {
+  transition-delay: calc(260ms + var(--order) * 170ms);
+}
+
+.node:is([data-role="ok"], [data-role="recovered"]) .point {
+  background: var(--hy-ink);
+}
+
+.node[data-role="failed"] .point {
+  border-color: var(--hy-red-fill);
+  background: var(--hy-red-fill);
+}
+
+.node[data-role="affected"] .point {
+  border-color: var(--hy-red);
+  background: var(--hy-red-soft);
+}
+
+.node[data-role="failed"] .point::after {
+  animation-name: storyRing;
+  animation-duration: 1800ms;
+  animation-timing-function: var(--ease-out);
+  animation-iteration-count: 2;
+}
+
+@keyframes storyRing {
+  from {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(3.2);
+  }
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 9px 0 7px;
+  border: 1px solid var(--hy-line);
+  border-radius: 999px;
+  background: var(--hy-raised);
+  color: var(--hy-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  animation-name: storyBadge;
+  animation-duration: 440ms;
+  animation-timing-function: var(--ease-out);
+  animation-delay: var(--badge-delay, 0ms);
+  animation-fill-mode: both;
+}
+
+.badge svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+}
+
+.badge:is([data-role="ok"], [data-role="recovered"]) {
+  border-color: transparent;
+  background: var(--hy-ok-soft);
+  color: var(--hy-ink);
+}
+
+.badge[data-role="failed"] {
+  border-color: color-mix(in srgb, var(--hy-red) 40%, transparent);
+  background: var(--hy-red-soft);
+  color: var(--hy-red);
+}
+
+.badge[data-role="affected"] {
+  border-color: color-mix(in srgb, var(--hy-red) 60%, transparent);
+  color: var(--hy-red);
+}
+
+.story[data-phase="check"] .badge {
+  --badge-delay: calc(var(--order) * 70ms);
+}
+
+.story[data-phase="recover"] .badge {
+  --badge-delay: calc(var(--hop) * 130ms);
+}
+
+@keyframes storyBadge {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}
+
+/* One thing at a time while the stage is narrower than the split layout. */
+@container story (max-width: 1079.98px) {
+  .codePane {
+    transition:
+      opacity 450ms var(--ease-out),
+      transform 650ms var(--ease-expo),
+      filter 450ms var(--ease-out);
+  }
+
+  .story:is(
+      [data-phase="map"],
+      [data-phase="check"],
+      [data-phase="fail"],
+      [data-phase="spread1"],
+      [data-phase="spread2"],
+      [data-phase="spread3"],
+      [data-phase="recover"],
+      [data-phase="calm"]
+    )
+    .codePane {
+    opacity: 0;
+  }
+
+  .story:is([data-phase="clear"], [data-phase="type"], [data-phase="read"]) .canvas {
+    opacity: 0;
+  }
+}
+
+@container story (max-width: 1079.98px) {
+  @media (prefers-reduced-motion: no-preference) {
+    .story:is(
+        [data-phase="map"],
+        [data-phase="check"],
+        [data-phase="fail"],
+        [data-phase="spread1"],
+        [data-phase="spread2"],
+        [data-phase="spread3"],
+        [data-phase="recover"],
+        [data-phase="calm"]
+      )
+      .codePane {
+      filter: blur(6px);
+      transform: translateY(16px) scale(0.96);
+    }
+  }
+}
+
+/* Phones: the map runs top to bottom, labels sit to the right of their points. */
+@container story (max-width: 599.98px) {
+  .stage {
+    --line-h: 18px;
+    --code-size: 12px;
+    --edge-w: 1.7;
+  }
+
+  .canvas {
+    aspect-ratio: 4 / 5;
+  }
+
+  .edgesWide {
+    display: none;
+  }
+
+  .edgesTall {
+    display: block;
+  }
+
+  .node {
+    left: calc(var(--tx) * 1%);
+    top: calc(var(--ty) * 1%);
+  }
+
+  .nodeBody {
+    flex-direction: row;
+    align-items: flex-start;
+    transform: translate(-7px, -7px);
+  }
+
+  .label {
+    align-items: flex-start;
+    gap: 5px;
+    margin-top: -2px;
+    margin-left: 10px;
+  }
+
+  .windowBar {
+    height: 40px;
+    padding: 0 12px;
+  }
+
+  .lineNumber {
+    width: 36px;
+    padding-right: 12px;
+  }
+
+  .mapHead {
+    font-size: 12.5px;
+  }
+}
+
+/* ---------- Controls ---------- */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+}
+
+.steps {
+  display: grid;
+  flex: 1 1 420px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stepButton,
+.stepButton:hover {
+  appearance: none;
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--hy-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  text-align: left;
+  cursor: pointer;
+  transition: color 180ms ease;
+}
+
+.stepButton[data-state="active"] {
+  color: var(--hy-ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .stepButton:hover {
+    color: var(--hy-ink);
+  }
+}
+
+.stepLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stepTrack {
+  display: block;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--hy-line);
+}
+
+.stepFill {
+  display: block;
+  height: 100%;
+  background: var(--hy-ink);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+.stepButton[data-state="done"] .stepFill {
+  transform: scaleX(1);
+}
+
+.stepButton[data-state="active"] .stepFill {
+  animation-name: storyFill;
+  animation-duration: var(--step-ms);
+  animation-timing-function: linear;
+  animation-delay: var(--step-delay);
+  animation-fill-mode: both;
+}
+
+@keyframes storyFill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.pause,
+.pause:hover {
+  appearance: none;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-left: auto;
+  padding: 0 18px 0 14px;
+  border: 1px solid var(--hy-line);
+  border-radius: 999px;
+  background: var(--hy-raised);
+  color: var(--hy-ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 160ms var(--ease-out),
+    background-color 200ms ease;
+}
+
+.pause svg {
+  width: 16px;
+  height: 16px;
+}
+
+.pause:active {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pause:hover {
+    background: var(--hy-hover);
+  }
+}
+
+/* Without JavaScript the still frame stays and the controls have nothing to control. */
+:global(html:not([data-theme])) .controls {
+  display: none;
+}
+
+/* ---------- Pausing and reduced motion ---------- */
+
+.story[data-running="false"] :is(.typed, .caret, .lineNumber, .scan, .packet, .port, .edgePulse, .stepFill),
+.story[data-running="false"] .point::after {
+  animation-play-state: paused;
+}
+
+/* Scroll in: the stage starts tilted back and settles flat as it reaches the middle of the screen. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .frame {
+      animation-name: storyArrive;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 42%;
+    }
+  }
+}
+
+@keyframes storyArrive {
+  from {
+    transform: perspective(1800px) rotateX(16deg) scale(0.94);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* Reduced motion: nothing travels or scales. Text still fades so changes are not abrupt. */
+@media (prefers-reduced-motion: reduce) {
+  .scan,
+  .packet,
+  .edgePulse,
+  .point::after {
+    display: none;
+  }
+
+  .statusText,
+  .badge {
+    animation-name: storyAppearSoft;
+  }
+}
+
+@keyframes storyAppearSoft {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
