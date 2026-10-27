@@ -1,0 +1,931 @@
+/*
+ * The live map in the hero (LiveMap.tsx). No frame: the services float on the page itself.
+ * The map keeps an 11:10 aspect ratio, so its SVG (1100 × 1000 map units) scales evenly.
+ * State lives in data attributes: data-role, data-dim and data-preview on each service, data-state and
+ * data-preview on each dependency, data-motion on the whole thing. Colour tokens come from theme.css.
+ */
+
+.live {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --orb: 32px;
+  --shock: 92px;
+  --heat: 230px;
+  --orb-hi: #7a7a73;
+  --orb-mid: #252523;
+  --orb-lo: #0b0b0a;
+  --orb-shine: rgb(255 255 255 / 0.45);
+  --orb-shadow: rgb(14 14 13 / 0.32);
+  --particle: color-mix(in srgb, var(--hy-ink) 58%, transparent);
+  container: live / inline-size;
+  display: grid;
+  gap: clamp(10px, 1.4vw, 16px);
+}
+
+:global(html[data-theme="dark"]) .live {
+  --orb-hi: #ffffff;
+  --orb-mid: #d9d9d3;
+  --orb-lo: #8a8a83;
+  --orb-shine: rgb(255 255 255 / 0.85);
+  --orb-shadow: rgb(0 0 0 / 0.6);
+  --particle: color-mix(in srgb, var(--hy-ink) 72%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(html:not([data-theme])) .live {
+    --orb-hi: #ffffff;
+    --orb-mid: #d9d9d3;
+    --orb-lo: #8a8a83;
+    --orb-shine: rgb(255 255 255 / 0.85);
+    --orb-shadow: rgb(0 0 0 / 0.6);
+    --particle: color-mix(in srgb, var(--hy-ink) 72%, transparent);
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- The bar above the map ---------- */
+
+.hudBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  min-height: 40px;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  color: var(--hy-muted);
+  font-size: 13px;
+}
+
+.liveTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  padding: 0 10px 0 9px;
+  border: 1px solid var(--hy-line);
+  border-radius: 999px;
+  background: var(--hy-raised);
+  color: var(--hy-ink);
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.liveDot {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--hy-ink);
+}
+
+.liveDot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 1.5px solid var(--hy-ink);
+  border-radius: 50%;
+  opacity: 0;
+}
+
+.live[data-motion="on"] .liveDot::after {
+  animation: liveBeat 1800ms var(--ease-out) infinite;
+}
+
+@keyframes liveBeat {
+  from {
+    opacity: 0.7;
+    transform: scale(0.45);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+.source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--hy-ink);
+  font-family: var(--hy-code);
+  font-size: 12.5px;
+}
+
+.source svg {
+  width: 15px;
+  height: 15px;
+  color: var(--hy-muted);
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.control,
+.control:hover {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 15px 0 12px;
+  border: 1px solid var(--hy-line);
+  border-radius: 999px;
+  background: var(--hy-raised);
+  color: var(--hy-ink);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform 160ms var(--ease-out),
+    border-color 200ms ease;
+}
+
+.control svg {
+  width: 15px;
+  height: 15px;
+}
+
+.control:active {
+  transform: scale(0.96);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .control:hover {
+    border-color: var(--hy-edge);
+  }
+}
+
+/* The status sits in the empty top left corner of the map, like a readout. */
+.status {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 4;
+  display: grid;
+  gap: 4px;
+  width: 58%;
+  pointer-events: none;
+}
+
+.statusText {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--hy-ink);
+  font-size: clamp(17px, 0.8vw + 11px, 21px);
+  font-weight: 620;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  text-shadow: 0 0 6px var(--hy-ground);
+  animation: liveIn 420ms var(--ease-out) both;
+}
+
+.statusText svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.status[data-tone="alert"] .statusText {
+  color: var(--hy-red);
+}
+
+.statusDetail {
+  color: var(--hy-muted);
+  font-size: 14px;
+  line-height: 1.4;
+  text-shadow: 0 0 6px var(--hy-ground);
+  text-wrap: pretty;
+  animation: liveIn 420ms var(--ease-out) 50ms both;
+}
+
+@keyframes liveIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- The map ---------- */
+
+.map {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 11 / 10;
+  container: livemap / inline-size;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.grid {
+  position: absolute;
+  inset: -3%;
+  background-image: radial-gradient(circle, var(--hy-dot) 1.1px, transparent 1.7px);
+  background-position: center;
+  background-size: 26px 26px;
+  -webkit-mask-image: radial-gradient(closest-side, #000 45%, transparent);
+  mask-image: radial-gradient(closest-side, #000 45%, transparent);
+  pointer-events: none;
+}
+
+.links {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.link {
+  transition: opacity 500ms ease;
+}
+
+.link[data-state="quiet"] {
+  opacity: 0.32;
+}
+
+.line {
+  fill: none;
+  stroke: var(--hy-edge);
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  transition:
+    stroke 500ms ease,
+    stroke-width 300ms ease;
+}
+
+.link[data-state="impact"] .line {
+  stroke: var(--hy-red);
+  stroke-width: 2px;
+}
+
+.link[data-state="healing"] .line {
+  transition-duration: 480ms, 300ms;
+  transition-timing-function: ease-in, ease;
+}
+
+.link[data-preview="true"] .line {
+  stroke: var(--hy-red);
+  stroke-dasharray: 5 6;
+}
+
+.particle {
+  fill: var(--particle);
+}
+
+.link[data-state="impact"] .particle {
+  fill: var(--hy-red-fill);
+}
+
+.pulse {
+  fill: var(--hy-red-fill);
+  stroke: color-mix(in srgb, var(--hy-red-fill) 28%, transparent);
+  stroke-width: 7px;
+  vector-effect: non-scaling-stroke;
+}
+
+.pulse[data-kind="heal"] {
+  fill: var(--hy-ink);
+  stroke: color-mix(in srgb, var(--hy-ink) 20%, transparent);
+}
+
+/* The file the map is read from. It appears for a moment, then the services burst out of it. */
+.origin {
+  position: absolute;
+  left: calc(var(--ox) / 11 * 1%);
+  top: calc(var(--oy) / 10 * 1%);
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px 7px 10px;
+  border: 1px solid var(--hy-line);
+  border-radius: 999px;
+  background: var(--hy-raised);
+  box-shadow: 0 14px 28px -16px rgb(0 0 0 / 0.45);
+  color: var(--hy-ink);
+  font-family: var(--hy-code);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  translate: -50% -50%;
+  pointer-events: none;
+}
+
+.origin svg {
+  width: 15px;
+  height: 15px;
+  color: var(--hy-muted);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .origin {
+    animation: liveOrigin 680ms var(--ease-out) 20ms both;
+  }
+}
+
+@keyframes liveOrigin {
+  0% {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  20%,
+  42% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+
+/* ---------- A service ---------- */
+
+.node {
+  position: absolute;
+  left: calc(var(--hx) / 11 * 1%);
+  top: calc(var(--hy) / 10 * 1%);
+  z-index: 2;
+  width: 0;
+  height: 0;
+  transition: opacity 500ms ease;
+}
+
+/* While something fails, the services it cannot reach step back. Pointing at one brings it forward again. */
+.node[data-dim="true"] {
+  opacity: 0.4;
+}
+
+.node[data-dim="true"]:has(.service:focus-visible) {
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .node[data-dim="true"]:hover {
+    opacity: 1;
+  }
+}
+
+.body {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.intro {
+  position: relative;
+}
+
+/* The burst: every service flies out of compose.yaml to its place, on the very first paint. */
+@media (prefers-reduced-motion: no-preference) {
+  .intro {
+    animation: liveBurst 760ms var(--ease-expo) calc(150ms + var(--i) * 34ms) both;
+  }
+
+  .links {
+    animation: liveFade 520ms ease 560ms both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro,
+  .links {
+    animation: liveFade 400ms ease both;
+  }
+}
+
+@keyframes liveBurst {
+  from {
+    opacity: 0;
+    transform: translate(calc((var(--ox) - var(--hx)) / 11 * 1cqw), calc((var(--oy) - var(--hy)) / 11 * 1cqw)) scale(0.2);
+  }
+  28% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes liveFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.service,
+.service:hover {
+  appearance: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  min-width: 56px;
+  margin: 0;
+  padding: 0 0 4px;
+  border: 0;
+  border-radius: 16px;
+  background: none;
+  color: var(--hy-ink);
+  font: inherit;
+  transform: translate(-50%, calc(var(--orb) / -2));
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.service:disabled {
+  cursor: default;
+}
+
+.live .service:focus-visible {
+  outline: 2px solid var(--hy-ink);
+  outline-offset: 7px;
+}
+
+/* A small glossy sphere: the service itself. Black on light, pearl on dark, red when it fails. */
+.orb {
+  position: relative;
+  display: block;
+  width: var(--orb);
+  height: var(--orb);
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, var(--orb-hi) 0%, var(--orb-mid) 46%, var(--orb-lo) 100%);
+  box-shadow:
+    0 12px 20px -10px var(--orb-shadow),
+    0 2px 5px -1px var(--orb-shadow);
+  isolation: isolate;
+  transition:
+    transform 450ms var(--ease-back),
+    box-shadow 400ms ease,
+    outline-color 300ms ease;
+}
+
+.orb::before {
+  content: "";
+  position: absolute;
+  top: 13%;
+  left: 21%;
+  z-index: 2;
+  width: 34%;
+  height: 24%;
+  border-radius: 50%;
+  background: var(--orb-shine);
+  filter: blur(1.2px);
+}
+
+.orb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #ffb7ad 0%, #f0473a 44%, #a91c11 100%);
+  opacity: 0;
+  transition: opacity 360ms ease;
+}
+
+.node[data-role="failed"] .orb {
+  transform: scale(1.18);
+  box-shadow:
+    0 0 26px 2px color-mix(in srgb, var(--hy-red-fill) 50%, transparent),
+    0 12px 20px -10px var(--orb-shadow);
+}
+
+.node[data-role="failed"] .orb::after {
+  opacity: 1;
+}
+
+.node[data-role="affected"] .orb {
+  box-shadow:
+    0 0 0 3px var(--hy-ground),
+    0 0 0 5px var(--hy-red),
+    0 12px 20px -10px var(--orb-shadow);
+}
+
+/* What would be affected, while a visitor points at a service. */
+.node[data-preview="affected"] .orb {
+  outline: 1.5px dashed var(--hy-red);
+  outline-offset: 5px;
+}
+
+.node[data-preview="source"] .orb {
+  transform: scale(1.14);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .service:enabled:hover .orb {
+    transform: scale(1.14);
+  }
+
+  .node[data-role="failed"] .service:enabled:hover .orb {
+    transform: scale(1.24);
+  }
+}
+
+.service:enabled:active .orb {
+  transform: scale(0.9);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* A small knock when the failure reaches a service. */
+  .node[data-role="affected"] .orb {
+    animation: liveKnock 560ms var(--ease-out);
+  }
+}
+
+@keyframes liveKnock {
+  35% {
+    transform: scale(1.32);
+  }
+}
+
+/* Behind a failing service: a soft red glow, and two rings that leave it once. */
+.heat {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--heat);
+  height: var(--heat);
+  margin: calc(var(--heat) / -2) 0 0 calc(var(--heat) / -2);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--hy-red-fill) 24%, transparent), transparent);
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    opacity 700ms ease,
+    transform 900ms var(--ease-out);
+  pointer-events: none;
+}
+
+.node[data-role="failed"] .heat {
+  opacity: 1;
+  transform: none;
+}
+
+.rings {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.ring {
+  position: absolute;
+  top: calc(var(--orb) / -2);
+  left: calc(var(--orb) / -2);
+  width: var(--orb);
+  height: var(--orb);
+  border-radius: 50%;
+  outline: 1.5px solid var(--hy-red-fill);
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .node[data-role="failed"] .ring {
+    animation: liveShock 1500ms var(--ease-out) 30ms both;
+  }
+
+  .node[data-role="failed"] .ring + .ring {
+    animation-delay: 300ms;
+  }
+}
+
+@keyframes liveShock {
+  0% {
+    opacity: 0;
+    outline-offset: 0;
+  }
+  8% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 0;
+    outline-offset: var(--shock);
+  }
+}
+
+.name {
+  color: var(--hy-ink);
+  font-family: var(--hy-code);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  white-space: nowrap;
+  text-shadow:
+    0 0 5px var(--hy-ground),
+    0 0 2px var(--hy-ground),
+    0 0 1px var(--hy-ground);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 23px;
+  padding: 0 9px 0 7px;
+  border: 1px solid var(--hy-line);
+  border-radius: 999px;
+  background: var(--hy-raised);
+  box-shadow: 0 8px 16px -12px rgb(0 0 0 / 0.45);
+  color: var(--hy-ink);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  animation: liveChip 420ms var(--ease-back) both;
+}
+
+.chip svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+}
+
+.chip[data-role="failed"] {
+  border-color: color-mix(in srgb, var(--hy-red) 45%, transparent);
+  background: var(--hy-red-soft);
+  color: var(--hy-red);
+}
+
+.chip[data-role="affected"] {
+  border-color: color-mix(in srgb, var(--hy-red) 55%, transparent);
+  color: var(--hy-red);
+}
+
+.chip[data-role="recovered"] {
+  border-color: transparent;
+  background: var(--hy-ok-soft);
+}
+
+@keyframes liveChip {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- The demo cursor ---------- */
+
+.ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 6;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 280ms ease;
+}
+
+.ghost:is([data-state="shown"], [data-state="pressing"], [data-state="released"]) {
+  opacity: 1;
+}
+
+.ghostArrow {
+  position: absolute;
+  top: -3.8px;
+  left: -5.4px;
+  width: 26px;
+  height: 26px;
+  fill: var(--hy-ink);
+  stroke: var(--hy-ground);
+  stroke-width: 1.4px;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 5px 6px rgb(0 0 0 / 0.28));
+  transform-origin: 5.4px 3.8px;
+  transition: transform 140ms var(--ease-out);
+}
+
+.ghostTouch {
+  position: absolute;
+  top: -18px;
+  left: -18px;
+  width: 36px;
+  height: 36px;
+  border: 2px solid color-mix(in srgb, var(--hy-ground) 85%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--hy-ink) 24%, transparent);
+  box-shadow: 0 8px 16px -8px rgb(0 0 0 / 0.45);
+  transition: transform 160ms var(--ease-out);
+}
+
+.ghost[data-pointer="fine"] .ghostTouch,
+.ghost[data-pointer="touch"] .ghostArrow {
+  display: none;
+}
+
+.ghost[data-state="pressing"] .ghostArrow {
+  transform: scale(0.8);
+}
+
+.ghost[data-state="pressing"] .ghostTouch {
+  transform: scale(0.78);
+}
+
+.ghost::after {
+  content: "";
+  position: absolute;
+  top: -16px;
+  left: -16px;
+  width: 32px;
+  height: 32px;
+  border: 1.5px solid var(--hy-ink);
+  border-radius: 50%;
+  opacity: 0;
+}
+
+.ghost[data-state="released"]::after {
+  animation: liveTap 560ms var(--ease-out) both;
+}
+
+@keyframes liveTap {
+  from {
+    opacity: 0.7;
+    transform: scale(0.35);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+
+/* ---------- Under the map ---------- */
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 18px;
+}
+
+.hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--hy-muted);
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+.hint svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--hy-ink);
+}
+
+.legend {
+  display: none;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  color: var(--hy-muted);
+  font-size: 12.5px;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend svg {
+  width: 13px;
+  height: 13px;
+  color: var(--hy-red);
+}
+
+/* Without JavaScript the map is a still picture: nothing to press, nothing to pause. */
+:global(html:not([data-theme])) .controls,
+:global(html:not([data-theme])) .hint {
+  display: none;
+}
+
+/* ---------- Small maps: smaller spheres, icon-only labels and a legend that spells them out ---------- */
+
+@container live (max-width: 640px) {
+  .map {
+    --orb: 22px;
+    --shock: 58px;
+    --heat: 150px;
+  }
+
+  .name {
+    font-size: 11.5px;
+    line-height: 16px;
+  }
+
+  .service,
+  .service:hover {
+    gap: 5px;
+    min-width: 48px;
+  }
+
+  .chip {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .chipText {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .legend {
+    display: flex;
+  }
+
+  .counts {
+    display: none;
+  }
+
+  .control,
+  .control:hover {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .controlText {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .statusText {
+    font-size: 16px;
+  }
+
+  .statusDetail {
+    font-size: 13px;
+  }
+}
+
+/* ---------- Reduced motion: things change, nothing travels ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .ghost,
+  .pulse,
+  .particle {
+    display: none;
+  }
+
+  .statusText,
+  .statusDetail,
+  .chip {
+    animation-name: liveFade;
+  }
+}

@@ -1,5 +1,5 @@
 /*
- * Landing page layout and type. Colour tokens live in theme.css, the hero animation in Story.module.css.
+ * Landing page layout and type. Colour tokens live in theme.css, the live map in LiveMap.module.css.
  * Few sizes, far apart: display, heading, lead, body, small.
  */
 
@@ -154,7 +154,7 @@
   display: flex;
   align-items: center;
   gap: 24px;
-  min-height: 80px;
+  min-height: clamp(64px, 3vw + 52px, 80px);
 }
 
 .brand {
@@ -298,8 +298,75 @@
 /* ---------- Hero ---------- */
 
 .hero {
-  padding-top: clamp(20px, 4.4vw, 64px);
-  padding-bottom: clamp(72px, 9vw, 128px);
+  padding-top: clamp(4px, 1.6vw, 24px);
+  padding-bottom: clamp(64px, 8vw, 112px);
+}
+
+/*
+ * Phones and tablets: headline, the live map, then the sentence and the buttons, so the map is on the first
+ * screen. From 1080px: words on the left, the map on the right, both on the first screen.
+ */
+.heroGrid {
+  --display: clamp(2.5rem, 13.2vw, 4.75rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "title"
+    "map"
+    "lead"
+    "actions";
+  gap: clamp(18px, 3vw, 32px);
+}
+
+.heroTitle {
+  grid-area: title;
+}
+
+.heroMap {
+  grid-area: map;
+  width: 100%;
+  min-width: 0;
+  max-width: max(320px, calc((100svh - 230px) * 1.1));
+}
+
+.heroGrid .lead {
+  grid-area: lead;
+}
+
+.heroGrid .heroActions {
+  grid-area: actions;
+}
+
+@media (min-width: 1080px) {
+  .heroGrid {
+    --display: clamp(3.5rem, 6.4vw - 0.25rem, 5.8rem);
+    grid-template-columns: minmax(0, 0.84fr) minmax(0, 1fr);
+    grid-template-rows: 1fr auto auto auto 1fr;
+    grid-template-areas:
+      ". map"
+      "title map"
+      "lead map"
+      "actions map"
+      ". map";
+    align-items: center;
+    column-gap: clamp(40px, 5vw, 88px);
+    row-gap: 0;
+    min-height: min(calc(100svh - 104px), 900px);
+  }
+
+  .heroGrid .lead {
+    margin-top: 28px;
+  }
+
+  .heroGrid .heroActions {
+    margin-top: 36px;
+  }
+
+  .heroMap {
+    justify-self: center;
+    width: 100%;
+    max-width: max(440px, calc((100svh - 250px) * 1.1));
+  }
 }
 
 .display {
@@ -329,20 +396,13 @@
   margin-left: -0.035em;
 }
 
-/* The full stop is the map's status light: it turns red while the story shows a failure (HeroStory.tsx). */
+/* The full stop is the map's status light: it turns red while a service on the map is failing (LiveMap.tsx). */
 .livePeriod {
   transition: color 700ms ease;
 }
 
 :global(html[data-hydra-incident="true"]) .livePeriod {
   color: var(--hy-red-fill);
-}
-
-.heroRow {
-  display: grid;
-  gap: 28px;
-  margin-top: clamp(28px, 3.4vw, 48px);
-  margin-bottom: clamp(36px, 4.6vw, 64px);
 }
 
 .lead {
@@ -387,38 +447,22 @@
   flex: none;
 }
 
-@media (min-width: 900px) {
-  .heroRow {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: end;
-    gap: 48px;
-  }
-
-  .heroActions {
-    justify-items: end;
-  }
-}
-
-/* The first screen arrives in reading order: headline lines rise, then the sentence, the buttons and the stage. */
+/* The first screen arrives at once: the headline rises while the map bursts open (LiveMap.module.css). */
 @media (prefers-reduced-motion: no-preference) {
   .rise {
-    animation: landingRise 1000ms var(--ease-expo) both;
+    animation: landingRise 900ms var(--ease-expo) both;
   }
 
   .mask + .mask .rise {
-    animation-delay: 90ms;
+    animation-delay: 80ms;
   }
 
   .lead {
-    animation: landingFade 900ms var(--ease-expo) 260ms both;
+    animation: landingFade 800ms var(--ease-expo) 220ms both;
   }
 
   .heroActions {
-    animation: landingFade 900ms var(--ease-expo) 360ms both;
-  }
-
-  .stageIn {
-    animation: landingStage 1100ms var(--ease-expo) 420ms both;
+    animation: landingFade 800ms var(--ease-expo) 300ms both;
   }
 }
 
@@ -439,15 +483,6 @@
   to {
     opacity: 1;
     transform: none;
-  }
-}
-
-@keyframes landingStage {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
   }
 }
 

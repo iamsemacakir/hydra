@@ -4,8 +4,8 @@ import Link from "next/link";
 import "@/components/landing/theme.css";
 import s from "@/components/landing/Landing.module.css";
 import { codeFont, sansFont } from "@/components/landing/fonts";
-import { HeroStory } from "@/components/landing/HeroStory";
 import { AffectedIcon, AlertIcon, ArrowRight, CheckIcon, HydraMark, LockIcon } from "@/components/landing/icons";
+import { LiveMap } from "@/components/landing/LiveMap";
 import { ThemeSwitch } from "@/components/landing/ThemeSwitch";
 
 export const metadata: Metadata = {
@@ -64,8 +64,8 @@ export default function LandingPage() {
 
       <main id="main">
         <section className={s.hero} aria-labelledby="hero-title">
-          <div className={s.wrap}>
-            <h1 id="hero-title" className={s.display}>
+          <div className={`${s.wrap} ${s.heroGrid}`}>
+            <h1 id="hero-title" className={`${s.display} ${s.heroTitle}`}>
               <span className={s.mask}>
                 <span className={s.rise}>Every service.</span>
               </span>
@@ -76,30 +76,28 @@ export default function LandingPage() {
               </span>
             </h1>
 
-            <div className={s.heroRow}>
-              <p className={s.lead}>
-                Hydra reads your <code className={s.inlineCode}>compose.yaml</code>, saves every service and dependency
-                as one live map, and shows which services are <strong>potentially affected</strong> when one fails.
-              </p>
-              <div className={s.heroActions}>
-                <div className={s.actions}>
-                  <Link className={`${s.btn} ${s.btnPrimary}`} href={WORKSPACE_HREF}>
-                    Open workspace
-                    <ArrowRight />
-                  </Link>
-                  <Link className={`${s.btn} ${s.btnSecondary}`} href={DEMO_HREF}>
-                    Explore the demo
-                  </Link>
-                </div>
-                <p className={s.note}>
-                  <LockIcon />
-                  Read-only analysis. Your code is never executed.
-                </p>
-              </div>
+            <div className={s.heroMap}>
+              <LiveMap />
             </div>
 
-            <div className={s.stageIn}>
-              <HeroStory />
+            <p className={s.lead}>
+              Hydra reads your <code className={s.inlineCode}>compose.yaml</code>, saves every service and dependency as
+              one live map, and shows which services are <strong>potentially affected</strong> when one fails.
+            </p>
+            <div className={s.heroActions}>
+              <div className={s.actions}>
+                <Link className={`${s.btn} ${s.btnPrimary}`} href={WORKSPACE_HREF}>
+                  Open workspace
+                  <ArrowRight />
+                </Link>
+                <Link className={`${s.btn} ${s.btnSecondary}`} href={DEMO_HREF}>
+                  Explore the demo
+                </Link>
+              </div>
+              <p className={s.note}>
+                <LockIcon />
+                Read-only analysis. Your code is never executed.
+              </p>
             </div>
           </div>
         </section>

@@ -25,35 +25,38 @@ Before a pull request, run `npm run lint`, `npm run typecheck` and `npm run buil
 | File | Purpose |
 | --- | --- |
 | `src/app/page.tsx` | The page: navigation, hero, how it works, what you get, final call to action, footer. |
-| `src/components/landing/HeroStory.tsx` | The hero animation, its controls (pause, play from a step) and the clickable map. |
-| `src/components/landing/story.ts` | Everything the animation shows: the `compose.yaml`, six services, their dependencies, the timeline, and which services are potentially affected when any one of them fails. Pure data and functions, shared by the story and by visitors' clicks. |
-| `src/components/landing/Story.module.css`, `Landing.module.css` | Styles (CSS modules). |
+| `src/components/landing/LiveMap.tsx` | The hero: the live map of the demo system, its demo cursor, the status line and the controls (Reset, Pause). |
+| `src/components/landing/mapModel.ts` | What the map shows: the eight services and seven dependencies of the Commerce demo, where each sits, and which services are potentially affected when any of them fails. Pure data and functions. |
+| `src/components/landing/mapEngine.ts` | What moves: a small spring simulation (dragging, the pointer, a slow breath), the requests flowing along each dependency and the pulses a failure or a recovery sends along them. Writes straight to the DOM in one frame loop. |
+| `src/components/landing/LiveMap.module.css`, `Landing.module.css` | Styles (CSS modules). |
 | `src/components/landing/theme.css`, `theme.ts`, `ThemeSwitch.tsx` | Light and dark tokens, the pre-paint theme script and the switch. |
 | `src/components/landing/fonts.ts`, `fonts/` | Self-hosted fonts and their licences. |
 
-## How the animation behaves
+## How the hero behaves
 
-The story loops in about 22 seconds, one idea at a time:
+The hero is a live map of the Commerce demo that ships with Hydra (`DemoSeed.cs`): `web`, `gateway`, `orders`, `payments`, `stripe`, `orders-db`, `rabbitmq` and `notifier`. It is meant to catch the eye within two seconds and then hand itself over to the visitor.
 
-1. **Write.** `compose.yaml` is typed line by line; the current line is softly highlighted.
-2. **Save.** One reading pass goes over the file and picks out each service name.
-3. **Map.** Each picked name lifts out of the file and flies to its point on the map (Web Animations API). Every dependency is drawn once both of its services have landed, and its `depends_on` line lights up in the file at the same moment.
-4. **Health.** The points fill in and every badge turns OK; the tick is drawn.
-5. **Fail.** `payments` becomes Unhealthy: two thin rings leave it once, a soft red glow sits behind it, the map leans in slightly towards it, and the services it cannot affect (`catalog`, `db`) fall out of focus. The failure travels along the dependencies, one hop at a time, and marks `orders`, `api` and `web` as Potentially affected.
-6. **Recover.** The recovery travels back the same way in ink, clearing one hop at a time. Then it loops.
+1. **First paint.** A `compose.yaml` chip appears and the eight services burst out of it to their places. This is plain CSS, so it moves before any JavaScript has loaded.
+2. **About 0.9 s.** Requests start to flow along every dependency and a demo cursor sets off. Its timing is read from the burst itself, so it follows however late the page painted.
+3. **About 1.7 s.** The cursor breaks `payments`: it turns red, two rings leave it, and the failure travels back along the dependencies, one hop at a time, marking `orders`, `gateway` and `web` as Potentially affected. Services the failure cannot reach step back. The status line counts along, and the full stop of "One live map." turns red.
+4. The cursor fixes it again (the recovery travels back in ink), then breaks something deeper (`stripe`, four hops) and something that branches (`rabbitmq`). It keeps going until a visitor takes over.
 
-Visitors can also break any service themselves: tap or click a point on the map (or Tab to it and press Enter) to see what depends on it, press it again to restore it, or press another one to move the failure. "Play story" goes back to the story. Screen readers hear the result ("db is unhealthy. 4 services potentially affected: orders, catalog, api, web.").
+Visitors take over the moment they move the mouse over the map, touch it or Tab into it:
 
-While a failure is on screen, the full stop of the headline "One live map." turns red.
+- **Point at a service** (or focus it with the keyboard) to preview what it would affect: dashed rings and dashed dependencies, and "If orders-db fails, 3 services would be potentially affected".
+- **Press a service** to break it, press it again to fix it. Several services can be broken at once. Reset makes everything healthy again. Screen readers hear each result ("rabbitmq is unhealthy. 4 services potentially affected: orders, notifier, gateway, web.").
+- **Drag a service** and let go: its neighbours follow and everything springs back.
+- The map also leans slightly towards a mouse pointer, nearer services a little more.
 
-- The server renders a still frame: the failure and what it potentially affects. That is what visitors see without JavaScript and with reduced motion. Without JavaScript the controls are hidden and the services cannot be pressed.
-- With motion allowed, the story starts from the still frame and plays while it is on screen. It pauses when scrolled away or when the tab is hidden.
-- A Pause button and six step buttons sit under the animation. Pause stops the clock, the flights and the CSS animations; short transitions finish.
-- With reduced motion the story stays still until the visitor presses Play. Nothing flies, scales, blurs or ripples; changes fade. Breaking a service shows its full result at once.
-- The stage tilts slightly as it scrolls into view (CSS scroll timeline, where supported) and follows a mouse or trackpad by a few degrees. Touch devices and reduced motion get neither.
-- Every status has text and an icon, never colour alone. The wording is always "potentially affected".
-- Layout comes from the stage's own width: file and map side by side from 1080px, one after the other below that (the file dissolves into the map), and a top-to-bottom map below 600px.
-- The flight timing (`FLY_LEAD_MS`, `FLY_STAGGER_MS`, `FLY_MS`) and the recovery step (`HEAL_STEP_MS`) live in `story.ts` and reach the CSS as custom properties, so the script and the styles cannot drift apart.
+Details:
+
+- **Pause** stops everything that moves by itself: the flow, the slow breath, the live dot and the demo cursor. Visitors' own actions still work.
+- **Reduced motion:** nothing moves by itself. The map shows one failure as a still frame (`payments` and what it potentially affects), pressing a service shows its full result at once, and dragging is off.
+- **Without JavaScript** the map is a still picture of the healthy system; the services cannot be pressed and the controls are hidden.
+- The frame loop runs only while the map is on screen and the tab is visible, and stops by itself once everything has settled.
+- Every status has a word and an icon, never colour alone. The wording is always "potentially affected". On small maps the labels next to services become icons and a legend under the map spells them out.
+- Layout: from 1080px the words sit on the left and the map on the right; below that the map comes straight after the headline. Either way the map is on the first screen. The map keeps an 11:10 aspect ratio and is never taller than the screen allows.
+- The failure timing (`HOP_MS`) lives in `mapModel.ts`; failures are stored as timestamps, so how far one has travelled is always derived from the clock.
 
 ## Theme
 
