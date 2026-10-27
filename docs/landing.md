@@ -6,29 +6,25 @@ All code is in `frontend/web/src/components/landing/`. No npm dependency was add
 
 ## Structure
 
-| Section | File | Purpose |
+| Section | File | What moves |
 | --- | --- | --- |
-| Hero | `Hero.tsx`, `HeroStage.tsx` | Headline, two actions, and an animated demo of a failure spreading through a sample system |
-| Get started | `GetStarted.tsx` | Three steps, each a link: sign in, import a repository, open the topology |
-| Impact explorer | `ImpactSection.tsx`, `ImpactExplorer.tsx` | Click a service in the sample graph and see what it could reach |
-| Capabilities | `Capabilities.tsx` | Topology, impact analysis, runtime health, deployments and events, environments, boards |
-| Closing call to action | `FinalCta.tsx` | Repeats the two actions |
+| Hero | `motion/Hero.tsx`, `motion/HeroScene.tsx` | Headline words rise in; three plates in light 3D (the compose file, Hydra, the service map) lift apart, the file is read, the map is drawn, one service fails and recovers, on a 12-second loop. A status line under the plates says in words what is happening. The stack leans a little towards the mouse. |
+| Ribbon | `motion/Marquee.tsx` | Two slow rows of what a project brings together, drifting in opposite directions; they stop on hover. |
+| How it works | `motion/Story.tsx`, `motion/scenes.tsx` | Four steps. A window next to them stays in view and plays the step being read: the compose file types itself; the scan results are applied and each row flips from "found" to "saved"; the map is drawn point by point with an "OK" box over each service; one service fails and the red travels back along the lines, hop by hop, before it recovers. On narrow screens each step shows its own window. |
+| Capabilities | `motion/Bento.tsx` | Seven tiles, each with its own small loop: data flowing along dependencies, a ripple with the services it reaches, a heartbeat and a status card that flips, an event feed, an environment comparison, a lock closing over a scanned file, a work item moving across a board. Tiles lean towards the mouse. |
+| Impact explorer | `ImpactSection.tsx`, `ImpactExplorer.tsx` | Click a service in the sample graph and see what it could reach. |
+| Get started | `motion/Steps.tsx` | Three linked steps; the line between them draws itself when it comes into view. |
+| Closing | `motion/Closing.tsx` | The two actions, next to services orbiting Hydra on a tilted ring. |
 
-Routes and section ids are constants in `content.ts`. Server components render everything; client components are limited to `HeroStage`, `ImpactExplorer`, `ThemeToggle` and `Reveal`.
+Routes and section ids are constants in `content.ts`. Everything is server-rendered; client components are limited to `HeroScene` (mouse lean), `Story` (which step is active), `InView` and `Tilt` (small helpers), `MotionToggle`, `ImpactExplorer`, `ThemeToggle` and `Reveal`.
+
+All animation is HTML, SVG and CSS (`motion/motion.module.css`); there is no canvas and no animation library, so everything stays sharp at any size. Graph positions and paths for the small maps are pure data in `motion/geometry.ts`.
 
 ## Sample data
 
-The graph in the hero, the explorer and the capability tiles is **sample data**, labelled as such on screen. It mirrors `backend/examples/commerce-system/compose.yaml`: 8 services and 7 dependencies (`graph.ts`). An arrow `A -> B` means A depends on B, the same convention as the topology page.
+Every graph on the page is the same **sample system**, labelled as such. It mirrors `backend/examples/commerce-system/compose.yaml`: 8 services and 7 dependencies (`graph.ts`). An arrow `A -> B` means A depends on B, the same convention as the topology page.
 
 `analyzeImpact` in `graph.ts` walks the dependencies in reverse (breadth first, safe on cycles) and returns direct dependents, indirect dependents and the longest chain. For `payment-service` that is `order-service` (direct) and `api-gateway`, `web-frontend` (indirect). Results are worded as "potentially affected", never as a prediction. The function is pure and has no React dependency.
-
-## Hero story
-
-Six phases loop: Scan 2.8 s, Map 2.6 s, Observe 2.0 s, Incident 2.4 s, Impact 3.2 s, Recover 2.4 s (15.4 s per loop). Each phase is a frame of node and edge states defined in `graph.ts`.
-
-The progress bar of the active phase is the clock: when its CSS animation ends, React moves to the next phase. Pausing the animation therefore pauses the story, and no timers need to be kept in sync. The story pauses on pointer hover (mouse only), on keyboard focus inside the stage, when the stage is scrolled out of view, and when the visitor presses the pause button. The six bars are buttons, so a visitor can jump to any phase.
-
-The server HTML shows the Impact frame, the most informative one. It is also what is shown without JavaScript and to visitors who prefer reduced motion.
 
 ## Theme
 
@@ -42,16 +38,16 @@ Three choices: **Auto**, **Light**, **Dark**.
 
 ## Motion
 
-Animations change only `transform` and `opacity`, never layout; hover and press feedback also fades colours. Motion uses ease-out curves, buttons and graph nodes scale to 0.97 while pressed, and hover effects apply only on devices with a fine pointer that can hover. Elements below the fold fade in once when scrolled to; they are fully visible in the server HTML.
-
-With `prefers-reduced-motion: reduce` every animation and transition is removed, the hero stays on the Impact frame, the pause button is hidden because there is nothing to pause, the steps remain clickable, and smooth scrolling is off.
+- Loops pause while their section is off screen, and the **Pause animations** button in the hero freezes every animation on the page (it sets `data-motion="paused"` on the page root).
+- The resting style of every animated element is a meaningful final state; keyframes only describe how it gets there. With `prefers-reduced-motion: reduce` all animation is removed and the page shows each story frozen at its most telling moment: the plates apart with the incident on the map, the typed file, the saved list, the drawn map and the incident with its potentially affected services. The pause button and the mouse lean are off in that mode.
+- Hover effects apply only on devices with a fine pointer that can hover.
 
 ## Accessibility
 
-- Status is never colour alone. Every state has a shape and a text label: hollow circle unknown, filled circle healthy, filled triangle degraded, cross unhealthy, hollow triangle potentially affected. A legend is always visible next to a graph.
-- The explorer graph is a group of buttons (`aria-pressed`, label "service, state") that work with Tab, Enter and Space. A polite live region announces the result of each selection. The decorative graphs are hidden from assistive technology and the hero provides the same dependencies as a visually hidden list.
-- There is a skip link, one `h1` with heading levels that never skip, landmarks, visible `:focus-visible` outlines, and a clickable area at least 44 px tall for every graph node at the widths tried (375 to 1440 px).
-- Contrast was measured on every distinct text run in both themes: the lowest ratio is 4.85:1 in Light and 4.73:1 in Dark (AA needs 4.5:1). Graph lines are at least 3:1 against their backgrounds. Hairline borders are decoration; identity and state are carried by text and shapes that meet the text and graphics ratios.
+- Status is never colour alone. Points carry a shape (check, filled triangle, hollow triangle) and a word in the box above them ("OK", "degraded", "potentially affected"), and every scene has a caption in plain text.
+- The decorative scenes are hidden from assistive technology; the hero picture has a text alternative and the story steps carry the same content as text.
+- The explorer graph is a group of buttons (`aria-pressed`, label "service, state") that work with Tab, Enter and Space. A polite live region announces the result of each selection.
+- There is a skip link, one `h1` with heading levels that never skip, landmarks, and visible `:focus-visible` outlines.
 
 ## Typography
 
@@ -78,7 +74,7 @@ Repository import currently supports the bundled `backend/examples/commerce-syst
 ## Changing things
 
 - Copy: the `.tsx` file of the section.
-- Sample system: `SERVICE_IDS`, `DEPENDENCIES`, `LAYOUTS` and `COMPOSE_EXCERPT` in `graph.ts`. A new service needs a position in both layouts.
-- Phase timings and captions: `PHASES` in `graph.ts`.
+- Sample system: `SERVICE_IDS`, `DEPENDENCIES` and `COMPOSE_EXCERPT` in `graph.ts`. A new service also needs a position in both layouts in `motion/geometry.ts` and in `LAYOUTS` for the explorer.
+- Timings: the keyframes in `motion/motion.module.css`. The hero loop length is `--loop` on `.heroVisual`; the incident scene runs on an 8-second loop.
 - Auto hours: `theme.ts`.
-- Colours, radii and easing: the `--lp-*` tokens at the end of `globals.css`.
+- Colours, radii and easing: the `--lp-*` tokens at the end of `globals.css` (including the accent and status colours).

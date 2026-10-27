@@ -14,7 +14,7 @@ export const SECTION_IDS = {
 
 export const NAV_LINKS = [
   { label: "How it works", href: `#${SECTION_IDS.film}` },
-  { label: "Get started", href: `#${SECTION_IDS.getStarted}` },
-  { label: "Impact explorer", href: `#${SECTION_IDS.explorer}` },
   { label: "Capabilities", href: `#${SECTION_IDS.capabilities}` },
+  { label: "Impact explorer", href: `#${SECTION_IDS.explorer}` },
+  { label: "Get started", href: `#${SECTION_IDS.getStarted}` },
 ] as const;

@@ -139,35 +139,11 @@ export function impactFrame(impact: Impact | null): Frame {
 }
 
 /* ------------------------------------------------------------------ */
-/* Hero story                                                          */
+/* Sample incident                                                     */
 /* ------------------------------------------------------------------ */
 
+/** The service that fails in every demo on the page. */
 export const INCIDENT_SERVICE: ServiceId = "payment-service";
-
-export type PhaseId = "scan" | "map" | "observe" | "incident" | "impact" | "recover";
-export type Phase = { id: PhaseId; label: string; /** Duration in milliseconds. */ ms: number; caption: string };
-
-const INCIDENT_IMPACT = analyzeImpact(INCIDENT_SERVICE);
-
-export const PHASES: readonly Phase[] = [
-  { id: "scan", label: "Scan", ms: 2800, caption: "Reading compose.yaml. Nothing is executed." },
-  { id: "map", label: "Map", ms: 2600, caption: `${SERVICE_IDS.length} services and ${DEPENDENCIES.length} dependencies found.` },
-  { id: "observe", label: "Observe", ms: 2000, caption: "Runtime health is attached to every service." },
-  { id: "incident", label: "Incident", ms: 2400, caption: `${INCIDENT_SERVICE} reports a degraded state.` },
-  { id: "impact", label: "Impact", ms: 3200, caption: summarizeImpact(INCIDENT_IMPACT) },
-  { id: "recover", label: "Recover", ms: 2400, caption: `${INCIDENT_SERVICE} is healthy again. The map returns to normal.` },
-];
-
-const FRAMES: Record<PhaseId, Frame> = {
-  scan: { nodes: nodesOf("hidden"), edges: edgesOf("hidden") },
-  map: { nodes: nodesOf("unknown"), edges: edgesOf("idle") },
-  observe: { nodes: nodesOf("healthy"), edges: edgesOf("idle") },
-  incident: { nodes: { ...nodesOf("healthy"), [INCIDENT_SERVICE]: "degraded" }, edges: edgesOf("idle") },
-  impact: impactFrame(INCIDENT_IMPACT),
-  recover: { nodes: nodesOf("healthy"), edges: edgesOf("idle") },
-};
-
-export const frameFor = (id: PhaseId): Frame => FRAMES[id];
 
 /* ------------------------------------------------------------------ */
 /* Layouts                                                             */

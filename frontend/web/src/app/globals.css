@@ -200,8 +200,8 @@ h2 { letter-spacing:-.025em; }
   --lp-ink-3: #616670;
   --lp-inverse: #10141a;
   --lp-on-inverse: #f8f9fc;
-  --lp-signal: #cb3814;
-  --lp-signal-soft: #ffe7dd;
+  --lp-signal: #d42a38;
+  --lp-signal-soft: #ffe3e5;
   --lp-shadow-stage: 0 1px 2px rgb(16 20 26 / 6%), 0 24px 48px -16px rgb(16 20 26 / 16%);
   --lp-radius-sm: 8px;
   --lp-radius-md: 12px;
@@ -212,6 +212,15 @@ h2 { letter-spacing:-.025em; }
   --lp-dur-press: 160ms;
   --lp-dur-ui: 240ms;
   --lp-dur-reveal: 500ms;
+  /* Accents for the animated landing sections. Status colors always come with a shape and a word. */
+  --lp-accent: #4f46e5;
+  --lp-accent-soft: #e8e7ff;
+  --lp-accent-2: #0891b2;
+  --lp-ok: #0b7a4b;
+  --lp-ok-soft: #dcf3e7;
+  --lp-bad: #d42a38;
+  --lp-bad-soft: #ffe3e5;
+  --lp-glass: rgb(255 255 255 / 74%);
 }
 :root[data-landing-theme="dark"] {
   --lp-bg: #0c0e12;
@@ -225,9 +234,17 @@ h2 { letter-spacing:-.025em; }
   --lp-ink-3: #888c94;
   --lp-inverse: #f0f2f4;
   --lp-on-inverse: #0d0f13;
-  --lp-signal: #ff874c;
-  --lp-signal-soft: #3e1d13;
+  --lp-signal: #ff6b72;
+  --lp-signal-soft: #3a1519;
   --lp-shadow-stage: 0 1px 2px rgb(0 0 0 / 40%), 0 24px 48px -16px rgb(0 0 0 / 60%);
+  --lp-accent: #9394ff;
+  --lp-accent-soft: #24244d;
+  --lp-accent-2: #22d3ee;
+  --lp-ok: #3ddc97;
+  --lp-ok-soft: #0f2e22;
+  --lp-bad: #ff6b72;
+  --lp-bad-soft: #3a1519;
+  --lp-glass: rgb(26 28 34 / 72%);
 }
 /* While the landing page is on screen, <html> takes over the page background and color scheme
    (scrollbars, overscroll) and anchor links scroll smoothly below the sticky navigation. */

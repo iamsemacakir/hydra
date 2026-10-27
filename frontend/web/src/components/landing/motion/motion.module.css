@@ -1,0 +1,3639 @@
+/*
+ * Animated landing sections.
+ *
+ * Everything here is HTML, SVG and CSS, so it stays sharp at any size and on any screen.
+ * Colours come from the --lp-* tokens in globals.css (light and dark).
+ *
+ * Rules
+ * - The resting style of every animated element is a meaningful final state. Keyframes only
+ *   describe how it gets there, so with reduced motion (bottom of this file) the page still
+ *   shows the whole story, frozen at its most telling moment.
+ * - Loops pause when their section is scrolled away ([data-inview="false"]) and when the
+ *   visitor presses "Pause animations" (rule in landing.module.css).
+ * - Status is never colour alone: a shape (check, triangle, hollow triangle) and a word go with it.
+ */
+
+/* ------------------------------------------------------------------ */
+/* Shared                                                              */
+/* ------------------------------------------------------------------ */
+
+.heroVisual[data-inview="false"] *,
+.story[data-inview="false"] *,
+.tileInView[data-inview="false"] *,
+.closingPanel[data-inview="false"] * {
+  animation-play-state: paused !important;
+}
+
+.tilt {
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  transform: perspective(1000px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+  transition: transform 500ms var(--lp-ease-out);
+}
+
+.motionToggle {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid var(--lp-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--lp-ink-3);
+  font: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  cursor: pointer;
+  transition:
+    color var(--lp-dur-press) var(--lp-ease-out),
+    border-color var(--lp-dur-press) var(--lp-ease-out);
+}
+
+.motionToggle:hover {
+  background: transparent;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .motionToggle:hover {
+    border-color: var(--lp-line-strong);
+    color: var(--lp-ink);
+  }
+}
+
+.motionToggle[data-ready="false"] {
+  visibility: hidden;
+}
+
+/* ------------------------------------------------------------------ */
+/* Hero                                                                */
+/* ------------------------------------------------------------------ */
+
+.hero {
+  position: relative;
+  padding-block: 72px 96px;
+  overflow: clip;
+  isolation: isolate;
+}
+
+.heroBg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.blobA,
+.blobB {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.55;
+}
+
+.blobA {
+  top: -120px;
+  right: 6%;
+  width: 520px;
+  height: 420px;
+  background: color-mix(in oklab, var(--lp-accent) 38%, transparent);
+  animation: drift 18s ease-in-out infinite alternate;
+}
+
+.blobB {
+  bottom: -160px;
+  left: -80px;
+  width: 460px;
+  height: 380px;
+  background: color-mix(in oklab, var(--lp-accent-2) 30%, transparent);
+  animation: drift 22s ease-in-out -6s infinite alternate-reverse;
+}
+
+.dots {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(color-mix(in oklab, var(--lp-ink) 14%, transparent) 1px, transparent 1.4px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(70% 60% at 60% 40%, #000, transparent 75%);
+}
+
+@keyframes drift {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+
+  to {
+    transform: translate(-60px, 40px) scale(1.12);
+  }
+}
+
+.heroGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 40px;
+  align-items: center;
+}
+
+@media (min-width: 1040px) {
+  .heroGrid {
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+    gap: 32px;
+  }
+}
+
+.heroCopy {
+  display: grid;
+  justify-items: start;
+  gap: 24px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 10px;
+  border: 1px solid var(--lp-line);
+  border-radius: 999px;
+  background: var(--lp-glass);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: var(--lp-ink-2);
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  animation: fadeUp 700ms var(--lp-ease-out) both;
+}
+
+.pillDot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lp-ok);
+}
+
+.pillDot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--lp-ok);
+  animation: ping 2.4s var(--lp-ease-out) infinite;
+}
+
+@keyframes ping {
+  from {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(3);
+  }
+}
+
+.heroTitle {
+  margin: 0;
+  font-size: clamp(44px, 6vw, 80px);
+  line-height: 1;
+  font-weight: 650;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+
+.wordMask {
+  display: inline-block;
+  overflow: clip;
+  overflow-clip-margin: 0.2em;
+  padding-bottom: 0.08em;
+  margin-bottom: -0.08em;
+  vertical-align: top;
+}
+
+.word {
+  position: relative;
+  display: inline-block;
+  animation: wordUp 900ms var(--lp-ease-out) calc(var(--i) * 70ms + 80ms) both;
+}
+
+@keyframes wordUp {
+  from {
+    opacity: 0;
+    transform: translateY(105%);
+  }
+}
+
+.wordAccent {
+  color: var(--lp-accent);
+}
+
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .wordAccent {
+    background: linear-gradient(100deg, var(--lp-bad), var(--lp-accent) 70%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+.underline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -0.08em;
+  width: 100%;
+  height: 0.18em;
+  overflow: visible;
+}
+
+.underline path {
+  fill: none;
+  stroke: var(--lp-bad);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-dasharray: 220;
+  stroke-dashoffset: 0;
+  vector-effect: non-scaling-stroke;
+  animation: drawLine 900ms var(--lp-ease-out) 900ms both;
+}
+
+@keyframes drawLine {
+  from {
+    stroke-dashoffset: 220;
+  }
+}
+
+.heroLede {
+  max-width: 34em;
+  font-size: 18px;
+  line-height: 30px;
+  color: var(--lp-ink-2);
+  text-wrap: pretty;
+  animation: fadeUp 800ms var(--lp-ease-out) 450ms both;
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  animation: fadeUp 800ms var(--lp-ease-out) 560ms both;
+}
+
+.heroFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  animation: fadeUp 800ms var(--lp-ease-out) 680ms both;
+}
+
+.heroTrust {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--lp-ink-3);
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+/* The 3D stack ------------------------------------------------------ */
+
+.heroVisual {
+  --mx: 0;
+  --my: 0;
+  --loop: 12s;
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  animation: fadeUp 1000ms var(--lp-ease-out) 250ms both;
+}
+
+.stackStage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 470px;
+  perspective: 1600px;
+  perspective-origin: 50% 30%;
+}
+
+.stack {
+  position: relative;
+  width: 330px;
+  height: 230px;
+  margin-top: 150px;
+  transform-style: preserve-3d;
+  transform: rotateX(calc(57deg - var(--my) * 10deg)) rotateZ(calc(-38deg + var(--mx) * 14deg));
+  transition: transform 700ms var(--lp-ease-out);
+}
+
+.stackShadow {
+  position: absolute;
+  inset: 8% 6%;
+  border-radius: 28px;
+  background: color-mix(in oklab, var(--lp-ink) 22%, transparent);
+  filter: blur(26px);
+  transform: translateZ(-2px);
+}
+
+.plate {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--lp-line-strong);
+  border-radius: 22px;
+  background: var(--lp-surface);
+  box-shadow: 0 1px 0 color-mix(in oklab, #fff 50%, transparent) inset;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+.plateCode {
+  overflow: hidden;
+  transform: translateZ(0);
+}
+
+.plateHydra {
+  overflow: hidden;
+  border-color: color-mix(in oklab, var(--lp-accent) 55%, transparent);
+  background:
+    linear-gradient(color-mix(in oklab, var(--lp-accent) 14%, transparent) 1px, transparent 1px) 0 0 / 22px 22px,
+    linear-gradient(90deg, color-mix(in oklab, var(--lp-accent) 14%, transparent) 1px, transparent 1px) 0 0 / 22px 22px,
+    color-mix(in oklab, var(--lp-accent-soft) 78%, transparent);
+  transform: translateZ(96px);
+  animation: liftMid var(--loop) var(--lp-ease-in-out) infinite;
+}
+
+.plateMap {
+  background: color-mix(in oklab, var(--lp-surface) 90%, transparent);
+  transform: translateZ(192px);
+  animation: liftTop var(--loop) var(--lp-ease-in-out) infinite;
+}
+
+@keyframes liftMid {
+  0%,
+  100% {
+    transform: translateZ(14px);
+  }
+
+  14%,
+  86% {
+    transform: translateZ(96px);
+  }
+}
+
+@keyframes liftTop {
+  0%,
+  100% {
+    transform: translateZ(28px);
+  }
+
+  16%,
+  86% {
+    transform: translateZ(192px);
+  }
+}
+
+.plateHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--lp-line);
+  color: var(--lp-ink-3);
+  font-family: var(--lp-mono);
+  font-size: 11px;
+}
+
+.plateHead i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lp-line-strong);
+}
+
+.plateHead span {
+  margin-left: 8px;
+}
+
+.codeBars {
+  display: grid;
+  gap: 9px;
+  padding: 16px 18px;
+}
+
+.codeBars span {
+  display: block;
+  width: calc(var(--w) * 7px);
+  height: 8px;
+  margin-left: calc(var(--indent) * 7px);
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--lp-accent) 40%, var(--lp-line));
+  animation: barRead var(--loop) linear calc(var(--i) * 180ms) infinite;
+}
+
+@keyframes barRead {
+  0%,
+  14% {
+    background: var(--lp-line-strong);
+  }
+
+  17% {
+    background: var(--lp-accent);
+  }
+
+  24%,
+  88% {
+    background: color-mix(in oklab, var(--lp-accent) 40%, var(--lp-line));
+  }
+
+  96%,
+  100% {
+    background: var(--lp-line-strong);
+  }
+}
+
+.readBand {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 34px;
+  height: 26px;
+  background: linear-gradient(180deg, transparent, color-mix(in oklab, var(--lp-accent) 22%, transparent), transparent);
+  opacity: 0;
+  animation: readBand var(--loop) linear infinite;
+}
+
+@keyframes readBand {
+  0%,
+  13% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+
+  15% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(170px);
+  }
+
+  32%,
+  100% {
+    opacity: 0;
+    transform: translateY(170px);
+  }
+}
+
+.hydraMark {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 4px;
+  color: var(--lp-accent);
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.hydraMark svg {
+  stroke: currentColor;
+  fill: none;
+}
+
+.hydraMark circle {
+  fill: currentColor;
+  stroke: none;
+}
+
+.hydraSweep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -30%;
+  width: 30%;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--lp-accent) 35%, transparent), transparent);
+  opacity: 0;
+  animation:
+    sweep 1.5s linear infinite,
+    beamWindow var(--loop) linear infinite;
+}
+
+@keyframes sweep {
+  to {
+    transform: translateX(440%);
+  }
+}
+
+@keyframes beamWindow {
+  0%,
+  14% {
+    opacity: 0;
+  }
+
+  18%,
+  40% {
+    opacity: 1;
+  }
+
+  45%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.plateGraph {
+  position: absolute;
+  inset: 14px;
+  width: calc(100% - 28px);
+  height: calc(100% - 28px);
+  overflow: visible;
+}
+
+.plateEdge {
+  fill: none;
+  stroke: var(--lp-line-strong);
+  stroke-width: 5;
+  stroke-dasharray: var(--len);
+  animation:
+    plateEdgeIn var(--loop) var(--lp-ease-out) calc(var(--i) * 140ms) infinite,
+    plateEdgeHot var(--loop) linear infinite;
+}
+
+.plateEdge[data-hot="false"] {
+  animation-name: plateEdgeIn, none;
+}
+
+@keyframes plateEdgeIn {
+  0%,
+  42% {
+    stroke-dashoffset: var(--len);
+  }
+
+  50%,
+  90% {
+    stroke-dashoffset: 0;
+  }
+
+  96%,
+  100% {
+    stroke-dashoffset: var(--len);
+  }
+}
+
+@keyframes plateEdgeHot {
+  0%,
+  62% {
+    stroke: var(--lp-line-strong);
+  }
+
+  65%,
+  80% {
+    stroke: var(--lp-bad);
+  }
+
+  84%,
+  100% {
+    stroke: var(--lp-line-strong);
+  }
+}
+
+.plateNode {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: plateNodeIn var(--loop) var(--lp-ease-out) calc(var(--i) * 140ms) infinite;
+}
+
+.plateDot {
+  fill: var(--lp-ok-soft);
+  stroke: var(--lp-ok);
+  stroke-width: 3;
+}
+
+.plateRing {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 3;
+}
+
+.plateNode[data-state="failing"] .plateDot {
+  animation: plateFail var(--loop) linear infinite;
+}
+
+.plateNode[data-state="failing"] .plateRing {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: plateRing var(--loop) var(--lp-ease-out) infinite;
+}
+
+.plateNode[data-state="affected"] .plateDot {
+  animation: plateAffected var(--loop) linear infinite;
+}
+
+@keyframes plateNodeIn {
+  0%,
+  40% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+
+  45% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+
+  48%,
+  90% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  96%,
+  100% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@keyframes plateFail {
+  0%,
+  61% {
+    fill: var(--lp-ok-soft);
+    stroke: var(--lp-ok);
+  }
+
+  63%,
+  81% {
+    fill: var(--lp-bad);
+    stroke: var(--lp-bad);
+  }
+
+  84%,
+  100% {
+    fill: var(--lp-ok-soft);
+    stroke: var(--lp-ok);
+  }
+}
+
+@keyframes plateRing {
+  0%,
+  62% {
+    stroke: var(--lp-bad);
+    opacity: 0;
+    transform: scale(0.8);
+  }
+
+  64% {
+    opacity: 0.9;
+  }
+
+  74% {
+    stroke: var(--lp-bad);
+    opacity: 0;
+    transform: scale(1.6);
+  }
+
+  83% {
+    stroke: var(--lp-ok);
+    opacity: 0.9;
+    transform: scale(0.9);
+  }
+
+  92%,
+  100% {
+    stroke: var(--lp-ok);
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+@keyframes plateAffected {
+  0%,
+  65% {
+    fill: var(--lp-ok-soft);
+    stroke: var(--lp-ok);
+    stroke-dasharray: none;
+  }
+
+  67%,
+  81% {
+    fill: var(--lp-bad-soft);
+    stroke: var(--lp-bad);
+    stroke-dasharray: 10 7;
+  }
+
+  84%,
+  100% {
+    fill: var(--lp-ok-soft);
+    stroke: var(--lp-ok);
+    stroke-dasharray: none;
+  }
+}
+
+.beam {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  animation: beamWindow var(--loop) linear infinite;
+}
+
+.beam i {
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--lp-accent);
+  box-shadow: 0 0 14px 3px color-mix(in oklab, var(--lp-accent) 55%, transparent);
+  animation: rise 1.25s linear calc(var(--i) * 250ms) infinite;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateZ(4px);
+  }
+
+  15% {
+    opacity: 1;
+  }
+
+  85% {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+    transform: translateZ(190px);
+  }
+}
+
+/* The line under the stack says in words what the stack is doing. */
+.heroStatus {
+  position: relative;
+  display: grid;
+  width: min(100%, 440px);
+  min-height: 44px;
+}
+
+.heroStatus p {
+  grid-area: 1 / 1;
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--lp-line);
+  border-radius: 999px;
+  background: var(--lp-glass);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px -14px color-mix(in oklab, var(--lp-ink) 40%, transparent);
+  color: var(--lp-ink);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+}
+
+.heroStatus p[data-step="fail"] {
+  opacity: 1;
+  border-color: color-mix(in oklab, var(--lp-bad) 50%, transparent);
+  color: var(--lp-bad);
+}
+
+.heroStatus p[data-step="ok"] {
+  border-color: color-mix(in oklab, var(--lp-ok) 45%, transparent);
+}
+
+.heroStatus p[data-step="read"] {
+  animation: statusRead var(--loop) linear infinite;
+}
+
+.heroStatus p[data-step="save"] {
+  animation: statusSave var(--loop) linear infinite;
+}
+
+.heroStatus p[data-step="fail"] {
+  animation: statusFail var(--loop) linear infinite;
+}
+
+.heroStatus p[data-step="ok"] {
+  animation: statusOk var(--loop) linear infinite;
+}
+
+@keyframes statusRead {
+  0%,
+  12% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  15%,
+  39% {
+    opacity: 1;
+    transform: none;
+  }
+
+  42%,
+  100% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes statusSave {
+  0%,
+  41% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  44%,
+  59% {
+    opacity: 1;
+    transform: none;
+  }
+
+  62%,
+  100% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes statusFail {
+  0%,
+  61% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  64%,
+  80% {
+    opacity: 1;
+    transform: none;
+  }
+
+  83%,
+  100% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes statusOk {
+  0%,
+  82% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  85%,
+  96% {
+    opacity: 1;
+    transform: none;
+  }
+
+  99%,
+  100% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+.sampleNote {
+  color: var(--lp-ink-3);
+  font-family: var(--lp-mono);
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lp-accent);
+  animation: ping 1.2s var(--lp-ease-out) infinite;
+}
+
+@media (max-width: 1039px) {
+  .hero {
+    padding-block: 48px 64px;
+  }
+
+  .stackStage {
+    height: 400px;
+  }
+
+  .stack {
+    margin-top: 120px;
+  }
+}
+
+@media (max-width: 560px) {
+  .heroActions {
+    width: 100%;
+  }
+
+  .heroActions > * {
+    flex: 1 1 auto;
+  }
+
+  .stackStage {
+    height: 330px;
+  }
+
+  .stack {
+    width: 250px;
+    height: 175px;
+    margin-top: 110px;
+  }
+
+  .codeBars {
+    gap: 6px;
+    padding: 10px 12px;
+  }
+
+  .codeBars span {
+    height: 6px;
+    width: calc(var(--w) * 5px);
+    margin-left: calc(var(--indent) * 5px);
+  }
+
+  .heroStatus p {
+    font-size: 13px;
+    white-space: normal;
+    text-align: center;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Marquee                                                             */
+/* ------------------------------------------------------------------ */
+
+.marquee {
+  display: grid;
+  gap: 12px;
+  padding-block: 28px;
+  border-block: 1px solid var(--lp-line);
+  background: var(--lp-surface);
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+}
+
+.ribbon {
+  display: flex;
+  width: max-content;
+  animation: slide 46s linear infinite;
+}
+
+.ribbonReverse {
+  animation-direction: reverse;
+  animation-duration: 58s;
+}
+
+.marquee:hover .ribbon {
+  animation-play-state: paused;
+}
+
+.ribbonTrack {
+  display: flex;
+  gap: 12px;
+  margin: 0;
+  padding: 0 6px;
+  list-style: none;
+}
+
+.ribbonItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border: 1px solid var(--lp-line);
+  border-radius: 999px;
+  background: var(--lp-bg);
+  color: var(--lp-ink);
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ribbonItem svg {
+  color: var(--lp-accent);
+}
+
+.ribbonQuiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--lp-ink-3);
+}
+
+.ribbonStar {
+  color: var(--lp-accent);
+  font-size: 12px;
+}
+
+@keyframes slide {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Story: how it works                                                 */
+/* ------------------------------------------------------------------ */
+
+.story {
+  padding-block: 112px 64px;
+}
+
+.storyGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 64px;
+  margin-top: 24px;
+}
+
+.storySteps {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.storyStep {
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  min-height: 66vh;
+  padding-block: 32px;
+  opacity: 0.32;
+  transition: opacity 500ms var(--lp-ease-out);
+}
+
+.storyStep[data-active="true"] {
+  opacity: 1;
+}
+
+.storyNumber {
+  font-family: var(--lp-mono);
+  font-size: 13px;
+  line-height: 20px;
+  letter-spacing: 0.06em;
+  color: var(--lp-accent);
+}
+
+.storyTitle {
+  margin: 0;
+  font-size: clamp(24px, 2.6vw, 34px);
+  line-height: 1.15;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.storyText {
+  max-width: 30em;
+  font-size: 17px;
+  line-height: 28px;
+  color: var(--lp-ink-2);
+  text-wrap: pretty;
+}
+
+.storyInline {
+  display: none;
+}
+
+.storySticky {
+  position: sticky;
+  top: max(96px, calc(50vh - 250px));
+  align-self: start;
+  margin-top: 16vh;
+}
+
+.window {
+  position: relative;
+  border: 1px solid var(--lp-line);
+  border-radius: 22px;
+  background: var(--lp-surface);
+  box-shadow:
+    0 1px 2px color-mix(in oklab, var(--lp-ink) 6%, transparent),
+    0 40px 80px -30px color-mix(in oklab, var(--lp-accent) 35%, transparent);
+  overflow: hidden;
+}
+
+.windowBar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 48px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--lp-line);
+}
+
+.windowDots {
+  display: flex;
+  gap: 6px;
+}
+
+.windowDots i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--lp-line-strong);
+}
+
+.windowTabs {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.windowTabs li {
+  position: relative;
+  padding: 5px 12px;
+  border-radius: 999px;
+  color: var(--lp-ink-3);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  transition:
+    background-color 300ms var(--lp-ease-out),
+    color 300ms var(--lp-ease-out);
+}
+
+.windowTabs li[data-done="true"] {
+  color: var(--lp-ink-2);
+}
+
+.windowTabs li[data-active="true"] {
+  background: var(--lp-accent-soft);
+  color: var(--lp-accent);
+}
+
+.windowBody {
+  position: relative;
+  height: 420px;
+}
+
+.scene {
+  position: absolute;
+  inset: 0;
+  padding: 24px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(12px);
+  transition:
+    opacity 450ms var(--lp-ease-out),
+    transform 450ms var(--lp-ease-out),
+    visibility 0s linear 450ms;
+}
+
+.scene[data-active="true"] {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity 450ms var(--lp-ease-out) 120ms,
+    transform 450ms var(--lp-ease-out) 120ms,
+    visibility 0s;
+}
+
+@media (max-width: 959px) {
+  .story {
+    padding-block: 88px 32px;
+  }
+
+  .storyGrid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .storySticky {
+    display: none;
+  }
+
+  .storyStep {
+    min-height: 0;
+    padding-block: 28px;
+    opacity: 1;
+  }
+
+  .storyInline {
+    display: block;
+    margin-top: 12px;
+  }
+
+  .storyInline .window {
+    padding: 20px;
+  }
+}
+
+/* Scene 1: editor ---------------------------------------------------- */
+
+.editor {
+  display: grid;
+  gap: 14px;
+}
+
+.editorHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--lp-ink-2);
+  font-family: var(--lp-mono);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.editorTag {
+  margin-left: auto;
+  padding: 2px 8px;
+  border: 1px solid var(--lp-line);
+  border-radius: 999px;
+  color: var(--lp-ink-3);
+  font-size: 11px;
+}
+
+.editorLines {
+  margin: 0;
+  padding: 14px 0;
+  border-radius: 14px;
+  background: var(--lp-bg);
+  list-style: none;
+  font-family: var(--lp-mono);
+  font-size: 13px;
+  line-height: 22px;
+  overflow: hidden;
+}
+
+.editorLine {
+  display: flex;
+  align-items: center;
+  white-space: pre;
+}
+
+.lineNo {
+  flex: none;
+  width: 3.4ch;
+  padding-right: 1.4ch;
+  color: var(--lp-ink-3);
+  text-align: right;
+  opacity: 0.7;
+}
+
+.typed {
+  display: inline-block;
+  width: calc(var(--chars) * 1ch);
+  overflow: hidden;
+  white-space: pre;
+  vertical-align: top;
+}
+
+.typed [data-kind="key"] {
+  color: var(--lp-ink-2);
+}
+
+.typed [data-kind="name"] {
+  color: var(--lp-ink);
+  font-weight: 600;
+}
+
+.typed [data-kind="value"] {
+  color: var(--lp-accent);
+}
+
+.typed [data-kind="punct"] {
+  color: var(--lp-ink-3);
+}
+
+.caret {
+  display: inline-block;
+  width: 2px;
+  height: 16px;
+  margin-left: 2px;
+  background: var(--lp-accent);
+  opacity: 0;
+}
+
+.sceneNote {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--lp-ok);
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
+.sceneHost[data-active="true"] .typed {
+  animation: type var(--dur) steps(var(--chars), end) var(--start) both;
+}
+
+.sceneHost[data-active="true"] .caret {
+  animation: blink 1s steps(1, end) var(--start) infinite;
+}
+
+.sceneHost[data-active="true"] .sceneNote {
+  animation: fadeUp 500ms var(--lp-ease-out) var(--start) both;
+}
+
+@keyframes type {
+  from {
+    width: 0;
+  }
+}
+
+@keyframes blink {
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Scene 2: save ------------------------------------------------------ */
+
+.save {
+  display: grid;
+  gap: 12px;
+}
+
+.saveHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.saveTitle {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 600;
+}
+
+.saveMeta {
+  color: var(--lp-ink-3);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.saveList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.saveRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--lp-line);
+  border-radius: 12px;
+  background: var(--lp-bg);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.saveName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 550;
+}
+
+.saveKind {
+  display: none;
+}
+
+.flip {
+  display: inline-grid;
+  margin-left: auto;
+  perspective: 300px;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 600;
+}
+
+.flipFront,
+.flipBack {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  backface-visibility: hidden;
+}
+
+.flipFront {
+  background: var(--lp-surface-2);
+  color: var(--lp-ink-2);
+  transform: rotateX(-180deg);
+}
+
+.flipBack {
+  background: var(--lp-ok-soft);
+  color: var(--lp-ok);
+}
+
+.flipBack svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.saveFoot {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.applyButton {
+  flex: none;
+  padding: 7px 16px;
+  border-radius: 10px;
+  background: var(--lp-accent);
+  color: #fff;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+}
+
+.saveBar {
+  flex: 1 1 auto;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--lp-surface-2);
+  overflow: hidden;
+}
+
+.saveBar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--lp-accent), var(--lp-ok));
+  transform-origin: 0 50%;
+}
+
+.saveCount {
+  flex: none;
+  color: var(--lp-ink-2);
+  font-size: 13px;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+@property --saved {
+  syntax: "<integer>";
+  inherits: true;
+  initial-value: 8;
+}
+
+.saveCount b {
+  color: var(--lp-ink);
+}
+
+.saveCount b::before {
+  counter-reset: saved var(--saved);
+  content: counter(saved);
+}
+
+.sceneHost[data-active="true"] .saveRow {
+  animation: rowIn 450ms var(--lp-ease-out) calc(var(--i) * 80ms) both;
+}
+
+.sceneHost[data-active="true"] .applyButton {
+  animation: press 500ms var(--lp-ease-out) 1100ms both;
+}
+
+.sceneHost[data-active="true"] .saveBar i {
+  animation: fill 1500ms var(--lp-ease-in-out) 1400ms both;
+}
+
+.sceneHost[data-active="true"] .saveCount b {
+  animation: countUp 1500ms steps(8, end) 1400ms both;
+}
+
+.sceneHost[data-active="true"] .flipFront {
+  animation: flipOut 520ms var(--lp-ease-out) calc(1450ms + var(--i) * 170ms) both;
+}
+
+.sceneHost[data-active="true"] .flipBack {
+  animation: flipIn 520ms var(--lp-ease-out) calc(1450ms + var(--i) * 170ms) both;
+}
+
+@keyframes rowIn {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+}
+
+@keyframes press {
+  0% {
+    background: var(--lp-surface-2);
+    color: var(--lp-ink);
+    transform: scale(1);
+  }
+
+  45% {
+    background: var(--lp-surface-2);
+    color: var(--lp-ink);
+    transform: scale(0.92);
+  }
+
+  100% {
+    background: var(--lp-accent);
+    color: #fff;
+    transform: scale(1);
+  }
+}
+
+@keyframes fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes countUp {
+  from {
+    --saved: 0;
+  }
+
+  to {
+    --saved: 8;
+  }
+}
+
+@keyframes flipOut {
+  from {
+    transform: rotateX(0);
+  }
+}
+
+@keyframes flipIn {
+  from {
+    transform: rotateX(180deg);
+  }
+}
+
+/* Scenes 3 and 4: the map ------------------------------------------- */
+
+.mapScene {
+  display: grid;
+  gap: 16px;
+  height: 100%;
+  align-content: center;
+}
+
+.graphBox {
+  container-type: inline-size;
+}
+
+.graph {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.graphTall {
+  display: none;
+}
+
+@container (max-width: 480px) {
+  .graphWide {
+    display: none;
+  }
+
+  .graphTall {
+    display: block;
+    max-width: 400px;
+    margin-inline: auto;
+  }
+}
+
+.edgeLine {
+  fill: none;
+  stroke: var(--lp-line-strong);
+  stroke-width: 1.6;
+}
+
+.edgeArrow {
+  fill: var(--lp-line-strong);
+}
+
+.nodeBody {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.nodeRing {
+  fill: none;
+  stroke: var(--lp-ok);
+  stroke-width: 2;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.nodePill {
+  fill: var(--lp-ok-soft);
+  stroke: var(--lp-ok);
+  stroke-width: 1.4;
+}
+
+.nodeName {
+  fill: var(--lp-ink);
+  font-family: var(--lp-sans);
+  font-weight: 550;
+}
+
+.nodeGlyph path,
+.nodeGlyph circle {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.gWait {
+  fill: none;
+  stroke: var(--lp-ink-3);
+  stroke-width: 1.6;
+  opacity: 0;
+}
+
+.gOk {
+  fill: none;
+  stroke: var(--lp-ok);
+  stroke-width: 2;
+}
+
+.gBad {
+  fill: var(--lp-bad);
+  opacity: 0;
+}
+
+.gAff {
+  fill: none;
+  stroke: var(--lp-bad);
+  stroke-width: 1.6;
+  opacity: 0;
+}
+
+.badges g {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.badge rect {
+  stroke-width: 1.2;
+}
+
+.badge text {
+  font-family: var(--lp-sans);
+  font-size: 10px;
+  font-weight: 650;
+  stroke: none;
+}
+
+.badge[data-tone="ok"] rect {
+  fill: var(--lp-ok-soft);
+  stroke: var(--lp-ok);
+}
+
+.badge[data-tone="ok"] text {
+  fill: var(--lp-ok);
+}
+
+.badge[data-tone="bad"] rect {
+  fill: var(--lp-bad);
+  stroke: var(--lp-bad);
+}
+
+.badge[data-tone="bad"] text {
+  fill: var(--lp-bg);
+}
+
+.badge[data-tone="aff"] rect {
+  fill: var(--lp-bad-soft);
+  stroke: var(--lp-bad);
+  stroke-dasharray: 3 2;
+}
+
+.badge[data-tone="aff"] text {
+  fill: var(--lp-bad);
+}
+
+.mapCaption {
+  display: inline-flex;
+  align-items: center;
+  justify-self: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--lp-ok-soft);
+  color: var(--lp-ok);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+}
+
+/* Build: services pop in along the flow, lines draw between them, then each turns OK. */
+.sceneHost[data-active="true"] .graph[data-mode="build"] .nodeBody {
+  animation: pop 560ms cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--i) * 160ms) both;
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="build"] .edgeLine {
+  stroke-dasharray: var(--len);
+  animation: draw 520ms var(--lp-ease-out) calc(var(--i) * 160ms + 60ms) both;
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="build"] .edgeArrow {
+  animation: fadeIn 200ms linear calc(var(--i) * 160ms + 480ms) both;
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="build"] .nodePill {
+  animation: pillOk 420ms var(--lp-ease-out) calc(1600ms + var(--i) * 110ms) both;
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="build"] .gWait {
+  animation: glyphOut 300ms linear calc(1600ms + var(--i) * 110ms) both;
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="build"] .gOk,
+.sceneHost[data-active="true"] .graph[data-mode="build"] .bOk {
+  animation: glyphIn 420ms cubic-bezier(0.34, 1.56, 0.64, 1) calc(1600ms + var(--i) * 110ms) both;
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="build"] .nodeRing {
+  animation: ringOnce 700ms var(--lp-ease-out) calc(1600ms + var(--i) * 110ms) both;
+}
+
+.sceneHost[data-active="true"] .mapCaption {
+  animation: fadeUp 500ms var(--lp-ease-out) 2700ms both;
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: var(--len);
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pillOk {
+  from {
+    fill: var(--lp-surface);
+    stroke: var(--lp-line-strong);
+  }
+}
+
+@keyframes glyphOut {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes glyphIn {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+}
+
+@keyframes ringOnce {
+  from {
+    opacity: 0.8;
+    transform: scale(0.9);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+}
+
+/*
+ * Incident: the resting style is the incident itself (for reduced motion). The 8-second loop
+ * runs OK, failure, red spreading back along the lines hop by hop, recovery.
+ */
+.graph[data-mode="incident"] .node[data-state="failing"] .nodePill {
+  fill: var(--lp-bad-soft);
+  stroke: var(--lp-bad);
+  stroke-width: 2;
+}
+
+.graph[data-mode="incident"] .node[data-state="failing"] .gOk,
+.graph[data-mode="incident"] .node[data-state="affected"] .gOk,
+.graph[data-mode="incident"] .node[data-state="failing"] .bOk,
+.graph[data-mode="incident"] .node[data-state="affected"] .bOk {
+  opacity: 0;
+}
+
+.graph[data-mode="incident"] .node[data-state="failing"] .gBad {
+  opacity: 1;
+}
+
+.graph[data-mode="incident"] .node[data-state="affected"] .nodePill {
+  fill: var(--lp-surface);
+  stroke: var(--lp-bad);
+  stroke-dasharray: 5 4;
+}
+
+.graph[data-mode="incident"] .node[data-state="affected"] .gAff {
+  opacity: 1;
+}
+
+.hotLine {
+  fill: none;
+  stroke: var(--lp-bad);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-dasharray: var(--len);
+  stroke-dashoffset: 0;
+}
+
+.incidentCaption {
+  display: grid;
+  justify-items: center;
+}
+
+.incidentCaption p {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.incidentCaption p[data-phase="bad"] {
+  background: var(--lp-bad-soft);
+  color: var(--lp-bad);
+}
+
+.incidentCaption p[data-phase="ok"] {
+  background: var(--lp-ok-soft);
+  color: var(--lp-ok);
+  opacity: 0;
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="failing"] .nodePill {
+  animation: failPill 8s linear infinite;
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="failing"] .nodeBody {
+  animation: shake 8s linear infinite;
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="failing"] .gOk,
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="failing"] .bOk {
+  animation: okGlyph 8s linear infinite;
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="failing"] .gBad,
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="failing"] .bBad {
+  animation: badGlyph 8s linear infinite;
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="failing"] .nodeRing {
+  animation: recoverRing 8s var(--lp-ease-out) infinite;
+}
+
+.sceneHost[data-active="true"] .incidentCaption p[data-phase="bad"] {
+  animation: captionBad 8s linear infinite;
+}
+
+.sceneHost[data-active="true"] .incidentCaption p[data-phase="ok"] {
+  animation: captionOk 8s linear infinite;
+}
+
+@keyframes failPill {
+  0%,
+  5% {
+    fill: var(--lp-ok-soft);
+    stroke: var(--lp-ok);
+    stroke-width: 1.4;
+  }
+
+  7%,
+  60% {
+    fill: var(--lp-bad-soft);
+    stroke: var(--lp-bad);
+    stroke-width: 2;
+  }
+
+  64%,
+  100% {
+    fill: var(--lp-ok-soft);
+    stroke: var(--lp-ok);
+    stroke-width: 1.4;
+  }
+}
+
+@keyframes shake {
+  0%,
+  5%,
+  10%,
+  100% {
+    transform: translateX(0);
+  }
+
+  6% {
+    transform: translateX(-4px);
+  }
+
+  7% {
+    transform: translateX(4px);
+  }
+
+  8% {
+    transform: translateX(-3px);
+  }
+
+  9% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes okGlyph {
+  0%,
+  5% {
+    opacity: 1;
+  }
+
+  6%,
+  62% {
+    opacity: 0;
+  }
+
+  64%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes badGlyph {
+  0%,
+  5% {
+    opacity: 0;
+  }
+
+  6%,
+  62% {
+    opacity: 1;
+  }
+
+  64%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes recoverRing {
+  0%,
+  62% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  64% {
+    opacity: 0.9;
+    transform: scale(0.95);
+  }
+
+  76%,
+  100% {
+    opacity: 0;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes captionBad {
+  0%,
+  6% {
+    opacity: 0;
+  }
+
+  9%,
+  60% {
+    opacity: 1;
+  }
+
+  63%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes captionOk {
+  0%,
+  4% {
+    opacity: 1;
+  }
+
+  6%,
+  62% {
+    opacity: 0;
+  }
+
+  65%,
+  100% {
+    opacity: 1;
+  }
+}
+
+/* The red travels back one hop every 8% of the loop; each service turns as it is reached. */
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .hotLine[data-hop="0"] {
+  animation: hot0 8s linear infinite;
+}
+
+@keyframes hot0 {
+  0%,
+  9% {
+    stroke-dashoffset: var(--len);
+    opacity: 1;
+  }
+
+  17%,
+  60% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  63% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+
+  64%,
+  100% {
+    stroke-dashoffset: var(--len);
+    opacity: 0;
+  }
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .hotLine[data-hop="1"] {
+  animation: hot1 8s linear infinite;
+}
+
+@keyframes hot1 {
+  0%,
+  17% {
+    stroke-dashoffset: var(--len);
+    opacity: 1;
+  }
+
+  25%,
+  60% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  63% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+
+  64%,
+  100% {
+    stroke-dashoffset: var(--len);
+    opacity: 0;
+  }
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .hotLine[data-hop="2"] {
+  animation: hot2 8s linear infinite;
+}
+
+@keyframes hot2 {
+  0%,
+  25% {
+    stroke-dashoffset: var(--len);
+    opacity: 1;
+  }
+
+  33%,
+  60% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  63% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+
+  64%,
+  100% {
+    stroke-dashoffset: var(--len);
+    opacity: 0;
+  }
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="affected"][data-hop="1"] .nodePill {
+  animation: affPill1 8s linear infinite;
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="affected"][data-hop="1"] .gOk,
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="affected"][data-hop="1"] .bOk {
+  animation: affOk1 8s linear infinite;
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="affected"][data-hop="1"] .gAff,
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="affected"][data-hop="1"] .bAff {
+  animation: affMark1 8s linear infinite;
+}
+
+@keyframes affPill1 {
+  0%,
+  16% {
+    fill: var(--lp-ok-soft);
+    stroke: var(--lp-ok);
+    stroke-dasharray: none;
+  }
+
+  17%,
+  61% {
+    fill: var(--lp-surface);
+    stroke: var(--lp-bad);
+    stroke-dasharray: 5 4;
+  }
+
+  64%,
+  100% {
+    fill: var(--lp-ok-soft);
+    stroke: var(--lp-ok);
+    stroke-dasharray: none;
+  }
+}
+
+@keyframes affOk1 {
+  0%,
+  16% {
+    opacity: 1;
+  }
+
+  17%,
+  62% {
+    opacity: 0;
+  }
+
+  64%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes affMark1 {
+  0%,
+  16% {
+    opacity: 0;
+  }
+
+  17%,
+  62% {
+    opacity: 1;
+  }
+
+  64%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="affected"][data-hop="2"] .nodePill {
+  animation: affPill2 8s linear infinite;
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="affected"][data-hop="2"] .gOk,
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="affected"][data-hop="2"] .bOk {
+  animation: affOk2 8s linear infinite;
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="affected"][data-hop="2"] .gAff,
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="affected"][data-hop="2"] .bAff {
+  animation: affMark2 8s linear infinite;
+}
+
+@keyframes affPill2 {
+  0%,
+  24% {
+    fill: var(--lp-ok-soft);
+    stroke: var(--lp-ok);
+    stroke-dasharray: none;
+  }
+
+  25%,
+  61% {
+    fill: var(--lp-surface);
+    stroke: var(--lp-bad);
+    stroke-dasharray: 5 4;
+  }
+
+  64%,
+  100% {
+    fill: var(--lp-ok-soft);
+    stroke: var(--lp-ok);
+    stroke-dasharray: none;
+  }
+}
+
+@keyframes affOk2 {
+  0%,
+  24% {
+    opacity: 1;
+  }
+
+  25%,
+  62% {
+    opacity: 0;
+  }
+
+  64%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes affMark2 {
+  0%,
+  24% {
+    opacity: 0;
+  }
+
+  25%,
+  62% {
+    opacity: 1;
+  }
+
+  64%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="affected"][data-hop="3"] .nodePill {
+  animation: affPill3 8s linear infinite;
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="affected"][data-hop="3"] .gOk,
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="affected"][data-hop="3"] .bOk {
+  animation: affOk3 8s linear infinite;
+}
+
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="affected"][data-hop="3"] .gAff,
+.sceneHost[data-active="true"] .graph[data-mode="incident"] .node[data-state="affected"][data-hop="3"] .bAff {
+  animation: affMark3 8s linear infinite;
+}
+
+@keyframes affPill3 {
+  0%,
+  32% {
+    fill: var(--lp-ok-soft);
+    stroke: var(--lp-ok);
+    stroke-dasharray: none;
+  }
+
+  33%,
+  61% {
+    fill: var(--lp-surface);
+    stroke: var(--lp-bad);
+    stroke-dasharray: 5 4;
+  }
+
+  64%,
+  100% {
+    fill: var(--lp-ok-soft);
+    stroke: var(--lp-ok);
+    stroke-dasharray: none;
+  }
+}
+
+@keyframes affOk3 {
+  0%,
+  32% {
+    opacity: 1;
+  }
+
+  33%,
+  62% {
+    opacity: 0;
+  }
+
+  64%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes affMark3 {
+  0%,
+  32% {
+    opacity: 0;
+  }
+
+  33%,
+  62% {
+    opacity: 1;
+  }
+
+  64%,
+  100% {
+    opacity: 0;
+  }
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Capabilities (bento)                                                */
+/* ------------------------------------------------------------------ */
+
+.bentoSection {
+  padding-top: 64px;
+}
+
+.bentoGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 48px;
+}
+
+.span2 {
+  grid-column: span 2;
+}
+
+.tileCell,
+.tileInView {
+  display: grid;
+  min-width: 0;
+}
+
+.tile {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 20px;
+  padding: 16px 16px 24px;
+  border: 1px solid var(--lp-line);
+  border-radius: 24px;
+  background: var(--lp-surface);
+  overflow: hidden;
+}
+
+.tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(420px circle at var(--glare-x, 50%) var(--glare-y, 0%), color-mix(in oklab, var(--lp-accent) 12%, transparent), transparent 60%);
+  opacity: 0;
+  transition: opacity 400ms var(--lp-ease-out);
+  pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tile:hover::after {
+    opacity: 1;
+  }
+
+  .tile:hover {
+    border-color: color-mix(in oklab, var(--lp-accent) 40%, var(--lp-line));
+  }
+}
+
+.tileFigure {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 16px;
+  min-height: 220px;
+  padding: 20px;
+  border-radius: 16px;
+  background:
+    radial-gradient(color-mix(in oklab, var(--lp-ink) 9%, transparent) 1px, transparent 1.3px) 0 0 / 16px 16px,
+    var(--lp-bg);
+  overflow: hidden;
+}
+
+.tileHead {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding-inline: 8px;
+}
+
+.tileTitle {
+  margin: 0;
+  font-size: 18px;
+  line-height: 26px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+.tileText {
+  color: var(--lp-ink-2);
+  font-size: 15px;
+  line-height: 24px;
+  text-wrap: pretty;
+}
+
+/* Live topology: data flows along each dependency. */
+.flowBox {
+  width: 100%;
+  container-type: inline-size;
+}
+
+.flowMap {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.flowMap.graphTall {
+  display: none;
+}
+
+@container (max-width: 480px) {
+  .flowMap.graphWide {
+    display: none;
+  }
+
+  .flowMap.graphTall {
+    display: block;
+    max-width: 360px;
+    margin-inline: auto;
+  }
+}
+
+.flowTrack {
+  fill: none;
+  stroke: var(--lp-line-strong);
+  stroke-width: 1.4;
+}
+
+.flowDots {
+  fill: none;
+  stroke: var(--lp-accent);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-dasharray: 0.1 16;
+  animation: flow 1.1s linear infinite;
+}
+
+@keyframes flow {
+  to {
+    stroke-dashoffset: -16.1;
+  }
+}
+
+.flowNode rect,
+.flowNode circle {
+  fill: var(--lp-surface);
+  stroke: var(--lp-line-strong);
+  stroke-width: 1.2;
+}
+
+.flowNode .flowCore {
+  fill: var(--lp-ok);
+  stroke: none;
+}
+
+.flowNode text {
+  fill: var(--lp-ink);
+  font-family: var(--lp-sans);
+  font-weight: 550;
+}
+
+/* Impact analysis: a ripple from the failing service, then the services it reaches. */
+.ripple {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 92px;
+}
+
+.rippleRings {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.rippleRings i {
+  grid-area: 1 / 1;
+  width: 120px;
+  height: 120px;
+  border: 1.5px solid var(--lp-bad);
+  border-radius: 50%;
+  opacity: 0;
+  animation: ripple 3s var(--lp-ease-out) infinite;
+}
+
+.rippleRings i:nth-child(2) {
+  animation-delay: 1s;
+}
+
+.rippleRings i:nth-child(3) {
+  animation-delay: 2s;
+}
+
+@keyframes ripple {
+  from {
+    opacity: 0.6;
+    transform: scale(0.4);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(2);
+  }
+}
+
+.rippleCore {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1.5px solid var(--lp-bad);
+  border-radius: 999px;
+  background: var(--lp-bad-soft);
+  color: var(--lp-bad);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 650;
+}
+
+.impactRows {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.impactRows li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px dashed color-mix(in oklab, var(--lp-bad) 55%, transparent);
+  border-radius: 10px;
+  background: var(--lp-surface);
+  color: var(--lp-ink);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 550;
+  animation: rowLoop 6s var(--lp-ease-out) calc(var(--i) * 400ms) infinite;
+}
+
+.impactRows li span {
+  margin-left: auto;
+  color: var(--lp-ink-3);
+  font-weight: 450;
+}
+
+@keyframes rowLoop {
+  0%,
+  6% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  12%,
+  82% {
+    opacity: 1;
+    transform: none;
+  }
+
+  92%,
+  100% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* Runtime health: a heartbeat, and a status card that flips. */
+.pulse {
+  display: flex;
+  width: 100%;
+  height: 70px;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent);
+}
+
+.pulseLine {
+  flex: none;
+  width: 100%;
+  height: 100%;
+  animation: slideFull 3s linear infinite;
+}
+
+.pulseLine path {
+  fill: none;
+  stroke: var(--lp-ok);
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  animation: pulseColor 8s linear infinite;
+}
+
+@keyframes slideFull {
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes pulseColor {
+  0%,
+  46% {
+    stroke: var(--lp-ok);
+  }
+
+  50%,
+  92% {
+    stroke: var(--lp-bad);
+  }
+
+  96%,
+  100% {
+    stroke: var(--lp-ok);
+  }
+}
+
+.flipStatus {
+  display: grid;
+  perspective: 500px;
+}
+
+.flipStatusFace {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 150px;
+  padding: 10px 18px;
+  border-radius: 14px;
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 650;
+  backface-visibility: hidden;
+}
+
+.flipStatusFace[data-face="ok"] {
+  background: var(--lp-ok-soft);
+  color: var(--lp-ok);
+  animation: faceA 8s var(--lp-ease-in-out) infinite;
+}
+
+.flipStatusFace[data-face="bad"] {
+  background: var(--lp-bad-soft);
+  color: var(--lp-bad);
+  transform: rotateX(180deg);
+  animation: faceB 8s var(--lp-ease-in-out) infinite;
+}
+
+@keyframes faceA {
+  0%,
+  45% {
+    transform: rotateX(0);
+  }
+
+  50%,
+  91% {
+    transform: rotateX(-180deg);
+  }
+
+  96%,
+  100% {
+    transform: rotateX(-360deg);
+  }
+}
+
+@keyframes faceB {
+  0%,
+  45% {
+    transform: rotateX(180deg);
+  }
+
+  50%,
+  91% {
+    transform: rotateX(0);
+  }
+
+  96%,
+  100% {
+    transform: rotateX(-180deg);
+  }
+}
+
+/* Deployments and events: a feed that fills in, one event at a time. */
+.feed {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feed li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--lp-line);
+  border-radius: 12px;
+  background: var(--lp-surface);
+  font-size: 13px;
+  line-height: 18px;
+  animation: feedIn 7.5s var(--lp-ease-out) calc(var(--i) * 700ms) infinite;
+}
+
+.feedTime {
+  color: var(--lp-ink-3);
+  font-family: var(--lp-mono);
+  font-size: 12px;
+}
+
+@keyframes feedIn {
+  0%,
+  4% {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+
+  10%,
+  80% {
+    opacity: 1;
+    transform: none;
+  }
+
+  90%,
+  100% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Environments: a scan moves down the rows and stops on the one that differs. */
+.envTable {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+  width: 100%;
+  font-size: 12.5px;
+  line-height: 18px;
+}
+
+.envHead {
+  padding: 0 8px 8px;
+  color: var(--lp-ink-3);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.envRow {
+  display: contents;
+}
+
+.envRow span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 9px 8px;
+  border-top: 1px solid var(--lp-line);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.envRow span:not(:first-child) {
+  font-family: var(--lp-mono);
+}
+
+.envNote {
+  grid-column: 1 / -1;
+  justify-self: center;
+  margin-top: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--lp-accent-soft);
+  color: var(--lp-accent);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 650;
+  animation: popLoop 5s var(--lp-ease-out) infinite;
+}
+
+.envRow[data-differs="true"] span {
+  background: color-mix(in oklab, var(--lp-accent) 8%, transparent);
+  animation: rowGlow 5s linear infinite;
+}
+
+.envScan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 26px;
+  height: 36px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--lp-accent) 18%, transparent), transparent);
+  pointer-events: none;
+  animation: envScan 5s var(--lp-ease-in-out) infinite;
+}
+
+@keyframes envScan {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+
+  8% {
+    opacity: 1;
+  }
+
+  55%,
+  100% {
+    opacity: 0;
+    transform: translateY(74px);
+  }
+}
+
+@keyframes rowGlow {
+  0%,
+  44% {
+    background: transparent;
+  }
+
+  52%,
+  92% {
+    background: color-mix(in oklab, var(--lp-accent) 10%, transparent);
+  }
+
+  100% {
+    background: transparent;
+  }
+}
+
+@keyframes popLoop {
+  0%,
+  46% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+
+  54%,
+  92% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+/* Read-only: a scan passes over the file, the lock closes. */
+.lockArt {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.lockFile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 92px;
+  height: 112px;
+  border: 1px solid var(--lp-line);
+  border-radius: 16px;
+  background: var(--lp-surface);
+  color: var(--lp-ink-2);
+  overflow: hidden;
+}
+
+.lockScan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: var(--lp-accent);
+  box-shadow: 0 0 12px 3px color-mix(in oklab, var(--lp-accent) 45%, transparent);
+  animation: lockScan 2.6s var(--lp-ease-in-out) infinite alternate;
+}
+
+@keyframes lockScan {
+  from {
+    transform: translateY(8px);
+  }
+
+  to {
+    transform: translateY(102px);
+  }
+}
+
+.lock {
+  overflow: visible;
+}
+
+.lockShackle {
+  fill: none;
+  stroke: var(--lp-ok);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  animation: shackle 3.2s var(--lp-ease-out) infinite;
+}
+
+.lockBody {
+  fill: var(--lp-ok-soft);
+  stroke: var(--lp-ok);
+  stroke-width: 2;
+}
+
+.lockHole {
+  fill: var(--lp-ok);
+}
+
+@keyframes shackle {
+  0%,
+  20% {
+    transform: translateY(-7px);
+  }
+
+  32%,
+  100% {
+    transform: translateY(0);
+  }
+}
+
+/* Boards: a work item travels from New to Closed. */
+.board {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  align-self: stretch;
+}
+
+.boardColumn {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 150px;
+  padding: 10px;
+  border-radius: 14px;
+  background: var(--lp-surface);
+  border: 1px solid var(--lp-line);
+}
+
+.boardName {
+  color: var(--lp-ink-3);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+}
+
+.boardCard {
+  height: 34px;
+  margin-top: 46px;
+  border-radius: 10px;
+  background: var(--lp-surface-2);
+}
+
+.boardMover {
+  position: absolute;
+  top: 38px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: calc((100% - 36px) / 4 - 20px);
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in oklab, var(--lp-accent) 45%, var(--lp-line));
+  border-radius: 10px;
+  background: var(--lp-surface);
+  box-shadow: 0 12px 24px -12px color-mix(in oklab, var(--lp-accent) 60%, transparent);
+  color: var(--lp-ink);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  --step: calc(100% + 32px);
+  transform: translateX(calc(var(--step) * 3));
+  animation: boardMove 9s var(--lp-ease-in-out) infinite;
+}
+
+@keyframes boardMove {
+  0%,
+  18% {
+    transform: translateX(0) rotate(0);
+  }
+
+  22% {
+    transform: translateX(calc(var(--step) * 0.5)) translateY(-6px) rotate(-2deg);
+  }
+
+  26%,
+  42% {
+    transform: translateX(var(--step)) rotate(0);
+  }
+
+  46% {
+    transform: translateX(calc(var(--step) * 1.5)) translateY(-6px) rotate(-2deg);
+  }
+
+  50%,
+  66% {
+    transform: translateX(calc(var(--step) * 2)) rotate(0);
+  }
+
+  70% {
+    transform: translateX(calc(var(--step) * 2.5)) translateY(-6px) rotate(-2deg);
+  }
+
+  74%,
+  94% {
+    transform: translateX(calc(var(--step) * 3)) rotate(0);
+  }
+
+  100% {
+    transform: translateX(calc(var(--step) * 3)) rotate(0);
+    opacity: 0;
+  }
+}
+
+@media (max-width: 1039px) {
+  .bentoGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .bentoGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .span2 {
+    grid-column: auto;
+  }
+
+  .board {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .boardColumn {
+    padding: 8px 6px;
+  }
+
+  .boardName {
+    font-size: 11px;
+  }
+
+  .boardMover {
+    left: 6px;
+    width: calc((100% - 18px) / 4 - 12px);
+    padding: 6px;
+    font-size: 0;
+    --step: calc(100% + 18px);
+  }
+
+  .boardMover svg {
+    margin-inline: auto;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Get started: a line that draws through three steps                  */
+/* ------------------------------------------------------------------ */
+
+.track {
+  position: relative;
+  margin-top: 56px;
+}
+
+.trackLine {
+  position: absolute;
+  top: 28px;
+  left: calc(100% / 6);
+  right: calc(100% / 6);
+  height: 2px;
+  background: var(--lp-line);
+  border-radius: 2px;
+}
+
+.trackLine i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--lp-accent), var(--lp-accent-2));
+  transform-origin: 0 50%;
+}
+
+.track[data-inview="false"] .trackLine i {
+  transform: scaleX(0);
+}
+
+.track[data-inview="true"] .trackLine i {
+  animation: fill 1600ms var(--lp-ease-in-out) 200ms both;
+}
+
+.trackSteps {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trackStep {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 10px;
+  padding: 0 12px;
+  text-align: center;
+}
+
+.trackDot {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 8px;
+  border: 1px solid var(--lp-line);
+  border-radius: 18px;
+  background: var(--lp-surface);
+  color: var(--lp-accent);
+  box-shadow: 0 0 0 8px var(--lp-bg);
+}
+
+.track[data-inview="false"] .trackDot,
+.track[data-inview="false"] .trackStep > :not(.trackDot) {
+  opacity: 0;
+}
+
+.track[data-inview="true"] .trackDot {
+  animation: pop 600ms cubic-bezier(0.34, 1.56, 0.64, 1) calc(200ms + var(--i) * 600ms) both;
+}
+
+.track[data-inview="true"] .trackStep > :not(.trackDot) {
+  animation: fadeUp 600ms var(--lp-ease-out) calc(350ms + var(--i) * 600ms) both;
+}
+
+.trackNumber {
+  color: var(--lp-accent);
+  font-family: var(--lp-mono);
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.trackTitle {
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.trackText {
+  max-width: 24em;
+  color: var(--lp-ink-2);
+  font-size: 15px;
+  line-height: 24px;
+  text-wrap: pretty;
+}
+
+.trackLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  color: var(--lp-ink);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.trackLink svg {
+  transition: transform var(--lp-dur-ui) var(--lp-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .trackLink:hover svg {
+    transform: translateX(3px);
+  }
+}
+
+@media (max-width: 800px) {
+  .trackLine {
+    top: 28px;
+    bottom: 28px;
+    left: 27px;
+    right: auto;
+    width: 2px;
+    height: auto;
+  }
+
+  .trackLine i {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(180deg, var(--lp-accent), var(--lp-accent-2));
+    transform-origin: 50% 0;
+  }
+
+  .track[data-inview="false"] .trackLine i {
+    transform: scaleY(0);
+  }
+
+  .track[data-inview="true"] .trackLine i {
+    animation-name: fillDown;
+  }
+
+  .trackSteps {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+  }
+
+  .trackStep {
+    grid-template-columns: 56px minmax(0, 1fr);
+    justify-items: start;
+    column-gap: 20px;
+    row-gap: 6px;
+    padding: 0;
+    text-align: left;
+  }
+
+  .trackDot {
+    grid-row: span 4;
+    margin-bottom: 0;
+  }
+}
+
+@keyframes fillDown {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Closing: services orbit Hydra                                       */
+/* ------------------------------------------------------------------ */
+
+.closing {
+  padding-block: 64px 112px;
+}
+
+.closingPanel {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 32px;
+  padding: 64px;
+  border-radius: 32px;
+  background:
+    radial-gradient(60% 80% at 85% 50%, color-mix(in oklab, var(--lp-accent) 40%, transparent), transparent 70%),
+    var(--lp-inverse);
+  color: var(--lp-on-inverse);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.closingCopy {
+  display: grid;
+  justify-items: start;
+  gap: 20px;
+}
+
+.closingTitle {
+  margin: 0;
+  font-size: clamp(32px, 4vw, 52px);
+  line-height: 1.05;
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+.closingText {
+  max-width: 28em;
+  color: color-mix(in oklab, var(--lp-on-inverse) 72%, transparent);
+  font-size: 17px;
+  line-height: 28px;
+}
+
+.closingActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.closingActions .closingPrimary,
+.closingActions .closingPrimary:hover {
+  background: var(--lp-on-inverse);
+  color: var(--lp-inverse);
+}
+
+.closingActions .closingSecondary,
+.closingActions .closingSecondary:hover {
+  border-color: color-mix(in oklab, var(--lp-on-inverse) 30%, transparent);
+  background: transparent;
+  color: var(--lp-on-inverse);
+}
+
+.orbit {
+  position: relative;
+  height: 380px;
+  perspective: 1100px;
+}
+
+.orbitPlane {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  transform: rotateX(66deg);
+}
+
+.orbitSpin {
+  position: absolute;
+  transform-style: preserve-3d;
+  animation: spin 36s linear infinite;
+}
+
+.orbitPath {
+  position: absolute;
+  left: -190px;
+  top: -190px;
+  width: 380px;
+  height: 380px;
+  border: 1.5px dashed color-mix(in oklab, var(--lp-on-inverse) 28%, transparent);
+  border-radius: 50%;
+}
+
+.orbitPathInner {
+  left: -115px;
+  top: -115px;
+  width: 230px;
+  height: 230px;
+  border-style: solid;
+  border-color: color-mix(in oklab, var(--lp-on-inverse) 12%, transparent);
+}
+
+.orbitNode {
+  position: absolute;
+  transform-style: preserve-3d;
+  transform: rotateZ(var(--a)) translateX(190px);
+}
+
+.orbitUnspin {
+  position: absolute;
+  transform-style: preserve-3d;
+  animation: spin 36s linear infinite reverse;
+}
+
+.orbitFace {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--lp-line);
+  border-radius: 999px;
+  background: var(--lp-surface);
+  box-shadow: 0 8px 20px -10px rgb(0 0 0 / 50%);
+  color: var(--lp-ink);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  transform: translate(-50%, -50%) rotateZ(calc(-1 * var(--a))) rotateX(-66deg);
+}
+
+.orbitFace svg {
+  color: var(--lp-ok);
+}
+
+.orbitCore {
+  position: absolute;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 16px 18px 12px;
+  border-radius: 22px;
+  background: var(--lp-accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 650;
+  box-shadow: 0 0 60px 10px color-mix(in oklab, var(--lp-accent) 55%, transparent);
+  transform: translate(-50%, -80%) rotateX(-66deg);
+}
+
+.orbitCore svg {
+  stroke: currentColor;
+}
+
+.orbitCore circle {
+  fill: currentColor;
+  stroke: none;
+}
+
+@keyframes spin {
+  to {
+    transform: rotateZ(360deg);
+  }
+}
+
+@media (max-width: 900px) {
+  .closingPanel {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 40px 24px 16px;
+  }
+
+  .orbit {
+    height: 300px;
+    transform: scale(0.7);
+  }
+}
+
+
+/* Status glyphs inside these sections use the accent status colours. */
+.heroStatus svg[data-kind="healthy"] circle,
+.mapCaption svg[data-kind="healthy"] circle,
+.incidentCaption svg[data-kind="healthy"] circle,
+.rippleCore svg[data-kind="healthy"] circle,
+.impactRows svg[data-kind="healthy"] circle,
+.flipStatusFace svg[data-kind="healthy"] circle,
+.feed svg[data-kind="healthy"] circle,
+.boardMover svg[data-kind="healthy"] circle,
+.orbitFace svg[data-kind="healthy"] circle {
+  fill: var(--lp-ok);
+}
+
+.heroStatus svg[data-kind="degraded"] path,
+.mapCaption svg[data-kind="degraded"] path,
+.incidentCaption svg[data-kind="degraded"] path,
+.rippleCore svg[data-kind="degraded"] path,
+.impactRows svg[data-kind="degraded"] path,
+.flipStatusFace svg[data-kind="degraded"] path,
+.feed svg[data-kind="degraded"] path,
+.boardMover svg[data-kind="degraded"] path,
+.orbitFace svg[data-kind="degraded"] path {
+  fill: var(--lp-bad);
+  stroke: var(--lp-bad);
+}
+
+.heroStatus svg[data-kind="affected"] path,
+.mapCaption svg[data-kind="affected"] path,
+.incidentCaption svg[data-kind="affected"] path,
+.rippleCore svg[data-kind="affected"] path,
+.impactRows svg[data-kind="affected"] path,
+.flipStatusFace svg[data-kind="affected"] path,
+.feed svg[data-kind="affected"] path,
+.boardMover svg[data-kind="affected"] path,
+.orbitFace svg[data-kind="affected"] path {
+  stroke: var(--lp-bad);
+}
+
+/* ------------------------------------------------------------------ */
+/* Reduced motion: everything rests on its meaningful final state      */
+/* ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .hero *,
+  .hero *::before,
+  .hero *::after,
+  .marquee *,
+  .story *,
+  .bentoSection *,
+  .track *,
+  .closing * {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .tilt {
+    transform: none !important;
+  }
+
+  .motionToggle {
+    display: none;
+  }
+
+  .ribbon {
+    flex-wrap: wrap;
+    width: auto;
+    justify-content: center;
+  }
+
+  .ribbonTrack[aria-hidden="true"] {
+    display: none;
+  }
+
+  .ribbonTrack {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .scene {
+    transform: none;
+  }
+
+  .track[data-inview="false"] .trackLine i {
+    transform: none;
+  }
+
+  .track[data-inview="false"] .trackDot,
+  .track[data-inview="false"] .trackStep > :not(.trackDot) {
+    opacity: 1;
+  }
+
+  .boardMover {
+    transform: translateX(var(--step));
+  }
+}
