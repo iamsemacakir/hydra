@@ -692,7 +692,7 @@
       animation-timing-function: linear;
       animation-fill-mode: both;
       animation-timeline: view();
-      animation-range: entry 5% cover 28%;
+      animation-range: entry 0% entry 100%;
     }
   }
 }
@@ -835,7 +835,7 @@
       animation-timing-function: linear;
       animation-fill-mode: both;
       animation-timeline: view();
-      animation-range: entry 0% cover 35%;
+      animation-range: entry 0% entry 90%;
     }
   }
 }
