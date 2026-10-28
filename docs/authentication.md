@@ -22,6 +22,18 @@ For separate processes, set `Oidc__Issuer=http://keycloak.localhost:8080/realms/
 
 For `npm run dev`, `npm run setup:local` (in `frontend/web`) writes these Next.js settings to `.env.local` with a freshly generated `AUTH_SECRET`; see `.env.local.example`. Without `AUTH_SECRET` Auth.js stops with `MissingSecret` and sign-in returns a server error.
 
+## Login theme
+
+Keycloak shows its own pages (sign in, password update, authenticator setup, sign-out, errors) in the **hydra** login theme in `infra/keycloak/themes/hydra`. It is Keycloak's keycloak.v2 theme from Keycloak 26.6.3 with the page frame of `/signin`: the Hydra brand and an Auto, Light and Dark switch on top, the form on the left and the services orbiting Hydra on the right. The realm name is not shown.
+
+- `login/template.ftl` is keycloak.v2's template with that frame. Keycloak's forms, fields, ids and scripts are unchanged.
+- `login/resources/css/hydra.css` copies the `--lp-*` tokens from `globals.css` and points PatternFly's variables at them, so Keycloak's own components follow both themes. Change it together with `globals.css` and `signin.module.css`.
+- `login/resources/js/hydra-theme.js` uses the same rule as the web app: Auto is light from 07:00 to 19:00 local time. Keycloak runs on another origin, so it keeps its own stored choice. When the realm's **Dark mode** switch (Realm settings, Themes) is off, the page stays light and hides the switch.
+- `login/messages/messages_en.properties` sets the Hydra texts ("Sign in to Hydra", "Sign in", sentence case) and the texts of the frame.
+- Geist and Geist Mono are bundled as woff2 files under the SIL Open Font License (`login/resources/fonts/OFL.txt`), so the page makes no requests to other sites.
+
+`compose.yaml` mounts the folder into the Keycloak container. `start-dev` does not cache themes, so a change shows on the next page load. A fresh realm import selects the theme through `"loginTheme": "hydra"` in `devops-realm.json`. A realm that already exists keeps its theme until you switch it: open `http://keycloak.localhost:8080/admin/`, choose the `devops` realm, then **Realm settings**, **Themes**, **Login theme** = `hydra`, **Save**.
+
 ## Sign-in page and errors
 
 `/signin` is server-rendered on every request. It starts the Keycloak sign-in with a server action, so the password is only ever entered on Keycloak. Auth.js sends every sign-in error back to `/signin?error=<code>` (`pages.error` in `src/auth.ts`) instead of its generic error page, and the page explains it in plain words (`src/lib/authSettings.ts`):

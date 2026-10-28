@@ -1,0 +1,1179 @@
+/*
+ * Hydra login theme for Keycloak (on top of keycloak.v2 and PatternFly 5).
+ *
+ * The page copies Hydra's sign-in page (/signin): the same tokens, type, layout and motion. The
+ * sources it mirrors are in frontend/web/src: app/globals.css (tokens), components/signin/signin.module.css
+ * (layout), components/landing/landing.module.css (brand, theme switch, glyphs) and
+ * components/landing/motion/motion.module.css (pill, orbit). Change them together.
+ *
+ * 1. Fonts          4. Page frame         7. Messages
+ * 2. Tokens         5. Card               8. The picture (orbit)
+ * 3. PatternFly     6. Forms and buttons  9. Small screens, reduced motion
+ */
+
+/* 1. Fonts: Geist and Geist Mono, variable, SIL Open Font License 1.1 (fonts/OFL.txt). */
+
+@font-face {
+  font-family: "Geist";
+  src: url("../fonts/Geist-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("../fonts/GeistMono-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 2. Tokens: a copy of the --lp-* tokens in globals.css. The theme script sets data-landing-theme. */
+
+:root {
+  --lp-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --lp-mono: "Geist Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --lp-bg: #f6f8fa;
+  --lp-surface: #fdfeff;
+  --lp-surface-2: #edeff4;
+  --lp-line: #dde0e4;
+  --lp-line-strong: #babec4;
+  --lp-ink: #10141a;
+  --lp-ink-2: #484d56;
+  --lp-ink-3: #616670;
+  --lp-inverse: #10141a;
+  --lp-on-inverse: #f8f9fc;
+  --lp-accent: #4f46e5;
+  --lp-accent-soft: #e8e7ff;
+  --lp-ok: #0b7a4b;
+  --lp-ok-soft: #dcf3e7;
+  --lp-bad: #d42a38;
+  --lp-bad-soft: #ffe3e5;
+  --lp-bad-ink: #b81f2d;
+  --lp-warn: #a15c07;
+  --lp-warn-soft: #fdf1d8;
+  --lp-glass: rgb(255 255 255 / 74%);
+  --lp-shadow-card: 0 1px 2px rgb(16 20 26 / 4%), 0 10px 28px -14px rgb(16 20 26 / 14%);
+  --lp-radius-sm: 8px;
+  --lp-radius-md: 12px;
+  --lp-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --lp-dur-press: 160ms;
+  --lp-dur-ui: 240ms;
+}
+
+:root[data-landing-theme="dark"] {
+  --lp-bg: #0c0e12;
+  --lp-surface: #15171c;
+  --lp-surface-2: #1f2227;
+  --lp-line: #2b2e34;
+  --lp-line-strong: #464b52;
+  --lp-ink: #f0f2f4;
+  --lp-ink-2: #a7abb3;
+  --lp-ink-3: #888c94;
+  --lp-inverse: #f0f2f4;
+  --lp-on-inverse: #0d0f13;
+  --lp-accent: #9394ff;
+  --lp-accent-soft: #24244d;
+  --lp-ok: #3ddc97;
+  --lp-ok-soft: #0f2e22;
+  --lp-bad: #ff6b72;
+  --lp-bad-soft: #3a1519;
+  --lp-bad-ink: #ff6b72;
+  --lp-warn: #f5b83d;
+  --lp-warn-soft: #352710;
+  --lp-glass: rgb(26 28 34 / 72%);
+  --lp-shadow-card: 0 1px 2px rgb(0 0 0 / 40%), 0 10px 28px -14px rgb(0 0 0 / 55%);
+}
+
+/*
+ * 3. PatternFly: its global variables point at the Hydra tokens, so every Keycloak component (alerts,
+ * checkboxes, lists, the OTP and passkey pages) takes Hydra's colours and type in both themes. The
+ * html.login-pf selector beats PatternFly's :root and :where(.pf-v5-theme-dark) declarations.
+ */
+
+html.login-pf {
+  --pf-v5-global--FontFamily--text: var(--lp-sans);
+  --pf-v5-global--FontFamily--heading: var(--lp-sans);
+  --pf-v5-global--FontFamily--monospace: var(--lp-mono);
+  --pf-v5-global--BackgroundColor--100: var(--lp-surface);
+  --pf-v5-global--BackgroundColor--150: var(--lp-surface);
+  --pf-v5-global--BackgroundColor--200: var(--lp-surface-2);
+  --pf-v5-global--BackgroundColor--300: var(--lp-surface-2);
+  --pf-v5-global--BackgroundColor--light-100: var(--lp-surface);
+  --pf-v5-global--BackgroundColor--light-200: var(--lp-surface-2);
+  --pf-v5-global--BackgroundColor--light-300: var(--lp-bg);
+  --pf-v5-global--Color--100: var(--lp-ink);
+  --pf-v5-global--Color--200: var(--lp-ink-2);
+  --pf-v5-global--Color--dark-100: var(--lp-ink);
+  --pf-v5-global--Color--dark-200: var(--lp-ink-2);
+  --pf-v5-global--BorderColor--100: var(--lp-line);
+  --pf-v5-global--BorderColor--200: var(--lp-line-strong);
+  --pf-v5-global--BorderColor--300: var(--lp-line);
+  --pf-v5-global--BorderColor--dark-100: var(--lp-line);
+  --pf-v5-global--primary-color--100: var(--lp-accent);
+  --pf-v5-global--primary-color--200: var(--lp-accent);
+  --pf-v5-global--primary-color--dark-100: var(--lp-accent);
+  --pf-v5-global--active-color--100: var(--lp-accent);
+  --pf-v5-global--link--Color: var(--lp-accent);
+  --pf-v5-global--link--Color--hover: var(--lp-accent);
+  --pf-v5-global--link--Color--dark: var(--lp-accent);
+  --pf-v5-global--link--Color--dark--hover: var(--lp-accent);
+  --pf-v5-global--danger-color--100: var(--lp-bad);
+  --pf-v5-global--danger-color--200: var(--lp-bad-ink);
+  --pf-v5-global--success-color--100: var(--lp-ok);
+  --pf-v5-global--warning-color--100: var(--lp-warn);
+  --pf-v5-global--BorderRadius--sm: 10px;
+  color-scheme: light;
+  background: var(--lp-bg);
+}
+
+html.login-pf[data-landing-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* keycloak.v2 puts a background picture on the body; Hydra's page is plain. */
+.login-pf body.hydra {
+  height: auto;
+  min-height: 100%;
+  margin: 0;
+  background: var(--lp-bg);
+  color: var(--lp-ink);
+  font-family: var(--lp-sans);
+  font-size: 16px;
+  line-height: 26px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.hydra :where(h1, h2, h3, p, ul, ol) {
+  margin: 0;
+}
+
+.hydra :focus-visible {
+  outline: 2px solid var(--lp-ink);
+  outline-offset: 3px;
+}
+
+.hydra-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 320ms;
+  animation-timing-function: var(--lp-ease-out);
+}
+
+/* 4. Page frame: brand and theme switch on top, the form on the left, the picture on the right. */
+
+.hydra-page {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 100dvh;
+  overflow-x: clip;
+}
+
+.hydra-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 32px;
+}
+
+.hydra-brand {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  border-radius: var(--lp-radius-sm);
+  color: var(--lp-ink);
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+a.hydra-brand:hover,
+a.hydra-brand:focus {
+  color: var(--lp-ink);
+  text-decoration: none;
+}
+
+.hydra-logo {
+  flex: none;
+}
+
+.hydra-logo-plate {
+  fill: var(--lp-inverse);
+}
+
+.hydra-logo-stroke {
+  stroke: var(--lp-on-inverse);
+}
+
+.hydra-logo-dot {
+  fill: var(--lp-on-inverse);
+}
+
+.hydra-theme {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--lp-line);
+  border-radius: 999px;
+  background: var(--lp-surface-2);
+}
+
+.hydra-theme-option {
+  appearance: none;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--lp-ink-3);
+  cursor: pointer;
+  transition:
+    transform var(--lp-dur-press) var(--lp-ease-out),
+    background-color var(--lp-dur-press) var(--lp-ease-out),
+    color var(--lp-dur-press) var(--lp-ease-out);
+}
+
+/* A pressable area of at least 44 px high without moving anything. */
+.hydra-theme-option::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 44px;
+  transform: translateY(-50%);
+}
+
+.hydra-theme-option:active {
+  transform: scale(0.92);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hydra-theme-option:hover {
+    background: var(--lp-line);
+    color: var(--lp-ink);
+  }
+}
+
+/* The pressed segment follows the attribute on <html>, so it is right on the first paint. */
+html[data-landing-pref="auto"] .hydra-theme-option[data-theme-option="auto"],
+html[data-landing-pref="light"] .hydra-theme-option[data-theme-option="light"],
+html[data-landing-pref="dark"] .hydra-theme-option[data-theme-option="dark"] {
+  background: var(--lp-inverse);
+  color: var(--lp-on-inverse);
+}
+
+@media (pointer: coarse) {
+  .hydra-theme-option {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+.hydra-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 24px;
+  padding: 0 24px 24px;
+}
+
+.hydra-form-side {
+  display: grid;
+  place-items: center;
+  padding: 32px 16px 48px;
+}
+
+/* 5. Card: the pill, the page title, a lede on the sign-in pages, then Keycloak's own content. */
+
+.hydra-card {
+  display: grid;
+  justify-items: start;
+  gap: 20px;
+  width: min(100%, 440px);
+}
+
+.hydra-card > * {
+  animation: hydra-rise 700ms var(--lp-ease-out) both;
+}
+
+.hydra-card > :nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.hydra-card > :nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.hydra-card > :nth-child(n + 4) {
+  animation-delay: 180ms;
+}
+
+@keyframes hydra-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.hydra-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 10px;
+  border: 1px solid var(--lp-line);
+  border-radius: 999px;
+  background: var(--lp-glass);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: var(--lp-ink-2);
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
+.hydra-pill-dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lp-ok);
+}
+
+.hydra-pill-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--lp-ok);
+  animation: hydra-ping 2.4s var(--lp-ease-out) infinite;
+}
+
+@keyframes hydra-ping {
+  from {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(3);
+  }
+}
+
+.hydra-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+  width: 100%;
+}
+
+.hydra .hydra-title {
+  margin: 0;
+  color: var(--lp-ink);
+  font-family: var(--lp-sans);
+  font-size: clamp(38px, 4.4vw, 56px);
+  line-height: 1.02;
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+/* Other pages (password update, sign-out, errors) can have long titles; they get a smaller one. */
+.hydra .hydra-title-sm {
+  font-size: clamp(32px, 3.2vw, 42px);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+.hydra-language {
+  min-width: 150px;
+}
+
+.hydra-lede {
+  color: var(--lp-ink-2);
+  font-size: 18px;
+  line-height: 30px;
+  text-wrap: pretty;
+}
+
+.hydra-body {
+  display: grid;
+  gap: 20px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* PatternFly's login body padding belongs to its own card layout. */
+.hydra .hydra-body.pf-v5-c-login__main-body {
+  padding: 0;
+}
+
+.hydra-body > :empty {
+  display: none;
+}
+
+.hydra-note,
+.hydra-help {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--lp-ink-3);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.hydra-note svg {
+  flex: none;
+  color: var(--lp-ok);
+}
+
+.hydra-footer:empty {
+  display: none;
+}
+
+/* Text on Keycloak's info pages (errors, expired pages, sign-out). */
+.hydra .instruction {
+  margin: 0 0 12px;
+  color: var(--lp-ink-2);
+  font-size: 16px;
+  line-height: 26px;
+  text-wrap: pretty;
+}
+
+.hydra .hydra-body a:not(.pf-v5-c-button) {
+  color: var(--lp-accent);
+  font-weight: 500;
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+
+.hydra .hydra-body a:not(.pf-v5-c-button):hover {
+  color: var(--lp-accent);
+  text-decoration: underline;
+}
+
+.hydra code,
+.hydra pre,
+.hydra kbd {
+  font-family: var(--lp-mono);
+}
+
+/* 6. Forms and buttons. */
+
+.hydra .pf-v5-c-form {
+  --pf-v5-c-form--GridGap: 18px;
+  gap: 18px;
+}
+
+.hydra .pf-v5-c-form__group-label {
+  padding-bottom: 6px;
+}
+
+.hydra .pf-v5-c-form__label,
+.hydra .pf-v5-c-form__label-text {
+  color: var(--lp-ink);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+}
+
+.hydra .pf-v5-c-form__label-required {
+  color: var(--lp-bad-ink);
+}
+
+/* A field is one rounded box: PatternFly draws its borders with pseudo-elements, Hydra with a border. */
+.hydra .pf-v5-c-form-control {
+  min-height: 48px;
+  border: 1px solid var(--lp-line-strong);
+  border-radius: var(--lp-radius-md);
+  background: var(--lp-surface);
+  color: var(--lp-ink);
+  transition:
+    border-color var(--lp-dur-press) var(--lp-ease-out),
+    box-shadow var(--lp-dur-press) var(--lp-ease-out);
+}
+
+.hydra .pf-v5-c-form-control::before,
+.hydra .pf-v5-c-form-control::after {
+  display: none;
+}
+
+.hydra .pf-v5-c-form-control > :is(input, select, textarea) {
+  min-height: 46px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--lp-ink);
+  font-family: var(--lp-sans);
+  /* 16 px keeps phones from zooming in when a field is focused. */
+  font-size: 16px;
+  line-height: 22px;
+  outline: none;
+}
+
+.hydra .pf-v5-c-form-control > textarea {
+  padding-block: 12px;
+}
+
+.hydra .pf-v5-c-form-control > :is(input, select, textarea)::placeholder {
+  color: var(--lp-ink-3);
+}
+
+/* The browser's autofill colours would ignore the theme. */
+.hydra .pf-v5-c-form-control > input:-webkit-autofill {
+  -webkit-text-fill-color: var(--lp-ink);
+  -webkit-box-shadow: 0 0 0 1000px var(--lp-surface) inset;
+  caret-color: var(--lp-ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hydra .pf-v5-c-form-control:hover {
+    border-color: var(--lp-ink-3);
+  }
+}
+
+.hydra .pf-v5-c-form-control:focus-within {
+  border-color: var(--lp-accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--lp-accent) 24%, transparent);
+}
+
+.hydra .pf-v5-c-form-control.pf-m-readonly {
+  background: var(--lp-surface-2);
+}
+
+.hydra .pf-v5-c-form-control.pf-m-error {
+  border-color: var(--lp-bad);
+}
+
+.hydra .pf-v5-c-form-control__icon.pf-m-status {
+  color: var(--lp-bad);
+}
+
+/* Password and the attempted username: the field and its button share one box. */
+.hydra .pf-v5-c-input-group {
+  align-items: stretch;
+  border: 1px solid var(--lp-line-strong);
+  border-radius: var(--lp-radius-md);
+  background: var(--lp-surface);
+  transition:
+    border-color var(--lp-dur-press) var(--lp-ease-out),
+    box-shadow var(--lp-dur-press) var(--lp-ease-out);
+}
+
+.hydra .pf-v5-c-input-group .pf-v5-c-form-control {
+  min-height: 46px;
+  border: 0;
+  border-radius: var(--lp-radius-md) 0 0 var(--lp-radius-md);
+  background: transparent;
+  box-shadow: none;
+}
+
+/* PatternFly's dark theme draws a line between the field and its button. */
+.hydra .pf-v5-c-input-group__item {
+  border: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hydra .pf-v5-c-input-group:hover {
+    border-color: var(--lp-ink-3);
+  }
+}
+
+.hydra .pf-v5-c-input-group:focus-within {
+  border-color: var(--lp-accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--lp-accent) 24%, transparent);
+}
+
+.hydra .pf-v5-c-input-group:has(.pf-m-error) {
+  border-color: var(--lp-bad);
+}
+
+/* A field with an error keeps its red outline while it has focus. */
+.hydra .pf-v5-c-form-control.pf-m-error:focus-within,
+.hydra .pf-v5-c-input-group:has(.pf-m-error):focus-within {
+  border-color: var(--lp-bad);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--lp-bad) 22%, transparent);
+}
+
+.hydra .pf-v5-c-input-group:has(.pf-m-readonly) {
+  background: var(--lp-surface-2);
+}
+
+.hydra .pf-v5-c-input-group__item .pf-v5-c-button.pf-m-control {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  min-height: 46px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0 var(--lp-radius-md) var(--lp-radius-md) 0;
+  background: transparent;
+  color: var(--lp-ink-3);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hydra .pf-v5-c-input-group__item .pf-v5-c-button.pf-m-control:hover {
+    background: var(--lp-surface-2);
+    color: var(--lp-ink);
+  }
+}
+
+.hydra .pf-v5-c-input-group__item .pf-v5-c-button.pf-m-control:focus-visible {
+  outline-offset: -3px;
+}
+
+.hydra .pf-v5-c-form__helper-text {
+  margin-top: 8px;
+}
+
+.hydra .pf-v5-c-helper-text {
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.hydra .pf-v5-c-helper-text__item-text {
+  color: var(--lp-ink-2);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.hydra .pf-v5-c-helper-text__item-text.pf-m-error,
+.hydra .pf-v5-c-helper-text__item.pf-m-error .pf-v5-c-helper-text__item-text {
+  color: var(--lp-bad-ink);
+}
+
+.hydra .pf-v5-c-helper-text__item-text a {
+  color: var(--lp-accent);
+  font-weight: 500;
+}
+
+.hydra .pf-v5-c-check {
+  align-items: center;
+  column-gap: 8px;
+}
+
+.hydra .pf-v5-c-check__input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--lp-accent);
+}
+
+.hydra .pf-v5-c-check__label {
+  color: var(--lp-ink-2);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.hydra .pf-v5-c-form__actions {
+  display: flex;
+  gap: 12px;
+  margin: 0;
+  padding-top: 4px;
+}
+
+.hydra .pf-v5-c-form__actions > * {
+  margin: 0;
+}
+
+/* Buttons. Primary uses the inverse colours, like "Continue with Keycloak" on /signin. */
+.hydra .pf-v5-c-button:is(.pf-m-primary, .pf-m-secondary) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 52px;
+  margin: 0;
+  padding: 0 22px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  font-family: var(--lp-sans);
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform var(--lp-dur-press) var(--lp-ease-out),
+    background-color var(--lp-dur-press) var(--lp-ease-out),
+    border-color var(--lp-dur-press) var(--lp-ease-out),
+    box-shadow var(--lp-dur-ui) var(--lp-ease-out);
+}
+
+.hydra .pf-v5-c-button::after {
+  display: none;
+}
+
+.hydra .pf-v5-c-button.pf-m-block {
+  width: 100%;
+}
+
+.hydra .pf-v5-c-button.pf-m-primary,
+.hydra .pf-v5-c-button.pf-m-primary:hover,
+.hydra .pf-v5-c-button.pf-m-primary:focus {
+  background: var(--lp-inverse);
+  color: var(--lp-on-inverse);
+}
+
+.hydra .pf-v5-c-button.pf-m-secondary,
+.hydra .pf-v5-c-button.pf-m-secondary:hover,
+.hydra .pf-v5-c-button.pf-m-secondary:focus {
+  border-color: var(--lp-line-strong);
+  background: var(--lp-surface);
+  color: var(--lp-ink);
+}
+
+.hydra .pf-v5-c-button:is(.pf-m-primary, .pf-m-secondary):active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.hydra .pf-v5-c-button:is(.pf-m-primary, .pf-m-secondary):disabled,
+.hydra .pf-v5-c-button:is(.pf-m-primary, .pf-m-secondary).pf-m-aria-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hydra .pf-v5-c-button.pf-m-primary:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--lp-inverse) 84%, var(--lp-accent));
+    box-shadow: 0 14px 30px -16px color-mix(in oklab, var(--lp-accent) 70%, transparent);
+  }
+
+  .hydra .pf-v5-c-button.pf-m-secondary:hover:not(:disabled) {
+    border-color: var(--lp-ink-3);
+    background: var(--lp-surface-2);
+  }
+}
+
+.hydra .pf-v5-c-button.pf-m-link {
+  color: var(--lp-accent);
+  font-weight: 500;
+}
+
+/* Other sign-in options ("Try another way", identity providers) and the info band under the form. */
+.hydra #try-another-way {
+  margin-top: 0;
+}
+
+.hydra .pf-v5-c-login__main-footer {
+  display: grid;
+  gap: 16px;
+}
+
+.hydra .pf-v5-c-login__main-footer:empty {
+  display: none;
+}
+
+.hydra .pf-v5-c-login__main-footer-band {
+  margin: 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--lp-line);
+  color: var(--lp-ink-2);
+  font-size: 14px;
+  line-height: 22px;
+  text-align: left;
+}
+
+.hydra .pf-v5-c-login__main-footer-band-item {
+  padding: 0;
+}
+
+.hydra #kc-social-providers h2 {
+  margin: 0 0 12px;
+  color: var(--lp-ink-3);
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
+.hydra .pf-v5-c-login__main-footer-links {
+  padding: 0;
+}
+
+/* Keycloak's "Restart login" tooltip, kept inside the card so it never widens the page. */
+.hydra .kc-login-tooltip .kc-tooltip-text {
+  top: auto;
+  right: 0;
+  bottom: calc(100% + 8px);
+  left: auto;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: var(--lp-radius-sm);
+  background: var(--lp-inverse);
+  box-shadow: var(--lp-shadow-card);
+  color: var(--lp-on-inverse);
+  font-size: 13px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.hydra .kc-login-tooltip .kc-tooltip-text::after {
+  display: none;
+}
+
+.hydra .kc-login-tooltip:hover .kc-tooltip-text,
+.hydra .kc-login-tooltip:focus-visible .kc-tooltip-text {
+  opacity: 1;
+}
+
+/* 7. Messages: shape plus word, like the notice on /signin. */
+
+.hydra .hydra-alert {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in oklab, var(--lp-accent) 35%, transparent);
+  border-radius: 16px;
+  background: var(--lp-accent-soft);
+  box-shadow: none;
+}
+
+.hydra .hydra-alert::before {
+  display: none;
+}
+
+.hydra .hydra-alert.pf-m-danger {
+  border-color: color-mix(in oklab, var(--lp-bad) 40%, transparent);
+  background: var(--lp-bad-soft);
+}
+
+.hydra .hydra-alert.pf-m-warning {
+  border-color: color-mix(in oklab, var(--lp-warn) 40%, transparent);
+  background: var(--lp-warn-soft);
+}
+
+.hydra .hydra-alert.pf-m-success {
+  border-color: color-mix(in oklab, var(--lp-ok) 35%, transparent);
+  background: var(--lp-ok-soft);
+}
+
+.hydra .hydra-alert .pf-v5-c-alert__icon {
+  display: flex;
+  margin: 0;
+  padding-top: 5px;
+  font-size: 12px;
+  line-height: 12px;
+}
+
+.hydra .hydra-alert .pf-v5-c-alert__title {
+  margin: 0;
+  color: var(--lp-ink);
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.hydra-glyph {
+  flex: none;
+  overflow: visible;
+}
+
+.hydra-glyph[data-kind="healthy"] circle {
+  fill: var(--lp-ok);
+}
+
+.hydra-glyph[data-kind="problem"] path {
+  fill: var(--lp-bad);
+  stroke: var(--lp-bad);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+.hydra-glyph[data-kind="warning"] path {
+  fill: var(--lp-warn);
+  stroke: var(--lp-warn);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+.hydra-glyph[data-kind="unknown"] circle {
+  fill: none;
+  stroke: var(--lp-ink-3);
+  stroke-width: 1.5;
+}
+
+/* 8. The picture: services orbiting Hydra on the inverse panel, as on /signin. */
+
+.hydra-visual {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 560px;
+  border-radius: 32px;
+  background:
+    radial-gradient(60% 70% at 50% 45%, color-mix(in oklab, var(--lp-accent) 42%, transparent), transparent 70%),
+    var(--lp-inverse);
+  color: var(--lp-on-inverse);
+  overflow: hidden;
+  isolation: isolate;
+  animation: hydra-fade 900ms var(--lp-ease-out) 150ms both;
+}
+
+@keyframes hydra-fade {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+}
+
+.hydra-visual-status {
+  position: absolute;
+  top: 28px;
+  left: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid color-mix(in oklab, var(--lp-on-inverse) 18%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--lp-on-inverse) 8%, transparent);
+  color: var(--lp-on-inverse);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+}
+
+.hydra-visual-caption {
+  position: absolute;
+  right: 32px;
+  bottom: 28px;
+  left: 32px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.hydra-visual-title {
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.hydra-visual-note {
+  color: color-mix(in oklab, var(--lp-on-inverse) 60%, transparent);
+  font-family: var(--lp-mono);
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* The orbit is drawn for a 380 px tall box; the panel is taller, so it is shown larger. */
+.hydra-orbit {
+  position: relative;
+  width: 100%;
+  height: 380px;
+  perspective: 1100px;
+  transform: scale(1.3);
+}
+
+.hydra-orbit-plane {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  transform: rotateX(66deg);
+}
+
+.hydra-orbit-spin {
+  position: absolute;
+  transform-style: preserve-3d;
+  animation: hydra-spin 36s linear infinite;
+}
+
+.hydra-orbit-path {
+  position: absolute;
+  top: -190px;
+  left: -190px;
+  width: 380px;
+  height: 380px;
+  border: 1.5px dashed color-mix(in oklab, var(--lp-on-inverse) 28%, transparent);
+  border-radius: 50%;
+}
+
+.hydra-orbit-path-inner {
+  top: -115px;
+  left: -115px;
+  width: 230px;
+  height: 230px;
+  border-style: solid;
+  border-color: color-mix(in oklab, var(--lp-on-inverse) 12%, transparent);
+}
+
+.hydra-orbit-node {
+  position: absolute;
+  transform-style: preserve-3d;
+  transform: rotateZ(var(--a)) translateX(190px);
+}
+
+.hydra-at-0 { --a: 0deg; }
+.hydra-at-1 { --a: 60deg; }
+.hydra-at-2 { --a: 120deg; }
+.hydra-at-3 { --a: 180deg; }
+.hydra-at-4 { --a: 240deg; }
+.hydra-at-5 { --a: 300deg; }
+
+.hydra-orbit-unspin {
+  position: absolute;
+  transform-style: preserve-3d;
+  animation: hydra-spin 36s linear infinite reverse;
+}
+
+.hydra-orbit-face {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--lp-line);
+  border-radius: 999px;
+  background: var(--lp-surface);
+  box-shadow: 0 8px 20px -10px rgb(0 0 0 / 50%);
+  color: var(--lp-ink);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  transform: translate(-50%, -50%) rotateZ(calc(-1 * var(--a))) rotateX(-66deg);
+}
+
+.hydra-orbit-core {
+  position: absolute;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 16px 18px 12px;
+  border-radius: 22px;
+  background: var(--lp-accent);
+  color: var(--lp-on-inverse);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 650;
+  box-shadow: 0 0 60px 10px color-mix(in oklab, var(--lp-accent) 55%, transparent);
+  transform: translate(-50%, -80%) rotateX(-66deg);
+}
+
+.hydra-orbit-core svg {
+  stroke: currentColor;
+}
+
+.hydra-orbit-core circle {
+  fill: currentColor;
+  stroke: none;
+}
+
+@keyframes hydra-spin {
+  to {
+    transform: rotateZ(360deg);
+  }
+}
+
+/* 9. Small screens and reduced motion. */
+
+@media (max-width: 899px) {
+  .hydra-top {
+    padding: 14px 16px;
+  }
+
+  .hydra-main {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 0 16px 16px;
+  }
+
+  .hydra-form-side {
+    padding: 24px 0 32px;
+  }
+
+  .hydra-visual {
+    min-height: 340px;
+  }
+
+  .hydra-orbit {
+    height: 300px;
+    transform: scale(0.75);
+  }
+
+  .hydra-visual-status {
+    top: 18px;
+    left: 20px;
+  }
+
+  .hydra-visual-caption {
+    right: 20px;
+    bottom: 18px;
+    left: 20px;
+  }
+
+  .hydra-visual-title {
+    font-size: 18px;
+    line-height: 24px;
+  }
+}
+
+@media (max-width: 520px) {
+  .hydra-orbit {
+    transform: scale(0.6);
+  }
+}
+
+/* On the narrowest phones the mark alone keeps the header on one line; the name stays for screen readers. */
+@media (max-width: 359px) {
+  .hydra-brand-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hydra *,
+  .hydra *::before,
+  .hydra *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

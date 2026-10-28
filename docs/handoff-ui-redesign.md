@@ -20,7 +20,7 @@ Sema asked for three things, all in the Hydra design language of the landing pag
 | Overview (health summary, map preview, stats, feeds) | Done |
 | Topology (new layout, curved edges with arrows, legend, detail panel, impact view) | Done |
 | Boards (board, backlog, drawer), components, environments, compare, events, deployments, settings, integrations | Done |
-| Keycloak login theme | **Not started.** Plan below |
+| Keycloak login theme | Done: `infra/keycloak/themes/hydra`, see `docs/authentication.md` ("Login theme") |
 | Docs: design-system.md, landing.md | **Not updated yet.** List below |
 | `npm run lint`, `npm run typecheck`, `npm run build` | **Not run** (the sandbox could not install npm packages) |
 

@@ -14,6 +14,8 @@ services:
       - "8080:8080"
     volumes:
       - ./infra/keycloak:/opt/keycloak/data/import:ro
+      # Hydra login theme. start-dev does not cache themes, so edits show on the next page load.
+      - ./infra/keycloak/themes/hydra:/opt/keycloak/themes/hydra:ro
     depends_on:
       postgres:
         condition: service_healthy

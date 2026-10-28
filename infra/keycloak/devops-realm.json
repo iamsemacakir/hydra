@@ -4,6 +4,7 @@
   "enabled": true,
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
+  "loginTheme": "hydra",
   "clients": [
     {
       "clientId": "devops-api",

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28" fill="none">
+  <style>
+    .plate { fill: #10141a; }
+    .mark { stroke: #f8f9fc; }
+    .dot { fill: #f8f9fc; }
+    @media (prefers-color-scheme: dark) {
+      .plate { fill: #f0f2f4; }
+      .mark { stroke: #0d0f13; }
+      .dot { fill: #0d0f13; }
+    }
+  </style>
+  <rect class="plate" width="28" height="28" rx="8"/>
+  <path class="mark" d="M14 20.5V15M14 15 8.6 9.6M14 15l5.4-5.4M14 15V8.6" stroke-width="1.7" stroke-linecap="round"/>
+  <circle class="dot" cx="14" cy="20.5" r="2.1"/>
+  <circle class="dot" cx="8.6" cy="8.8" r="1.9"/>
+  <circle class="dot" cx="14" cy="7.6" r="1.9"/>
+  <circle class="dot" cx="19.4" cy="8.8" r="1.9"/>
+</svg>
