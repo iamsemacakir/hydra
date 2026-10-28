@@ -3,10 +3,25 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { Notice } from "@/components/app/Notice";
+import { PageHead } from "@/components/app/PageHead";
+import { StatusPill } from "@/components/app/Status";
+import { Icon } from "@/components/landing/Icon";
 import { DiscoveryPreview, getJson, postJson, Project, ProjectMember, RepositoryConnection, RepositoryScan } from "@/lib/api";
-import { ProjectNav } from "@/components/ProjectNav";
+import { formatWhen, formatWhenFull } from "@/lib/format";
+import type { StatusLook } from "@/lib/status";
 
 type Review = { connectionId: string; preview: DiscoveryPreview };
+
+function scanLook(status: RepositoryScan["status"]): StatusLook {
+  switch (status) {
+    case "Succeeded": return { tone: "ok", glyph: "check", label: "Succeeded" };
+    case "PartiallySucceeded": return { tone: "warn", glyph: "triangle", label: "Partly succeeded" };
+    case "Failed": return { tone: "bad", glyph: "cross", label: "Failed" };
+    case "Running": return { tone: "accent", glyph: "dot", label: "Running" };
+    default: return { tone: "neutral", glyph: "ring", label: "Pending" };
+  }
+}
 
 export default function IntegrationsPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -77,35 +92,36 @@ export default function IntegrationsPage() {
     finally { setBusy(false); }
   }
 
-  return <main className="page">
-    <Link className="back-link" href={`/projects/${projectId}`}>← Project overview</Link><div className="eyebrow">EXTERNAL SOURCES</div>
-    <h1>{project?.name ?? "Integrations"}</h1><p className="lede">Read-only connections keep the operational model tied to repository evidence.</p>
-    <ProjectNav projectId={projectId} active="Integrations" />
-    {error && <p className="error" role="alert">{error}</p>}{message && <p className="muted" role="status">{message}</p>}
-    {connections.length === 0 && <section className="panel empty-state"><h2>No repository connected</h2>
-      <p className="muted">Connect the bundled Commerce System to scan Docker Compose configuration. The project remains usable without integrations.</p>
-      {canManage && <button className="button primary" disabled={busy} onClick={() => void connectDemo()}>Connect bundled demo</button>}
-    </section>}
-    {connections.map(connection => <section className="panel" key={connection.id}><div className="section-heading"><h2>{connection.name}</h2><span className="version">{connection.status}</span></div>
-      <p className="muted">{connection.provider} · {connection.repositoryUrl} · branch {connection.defaultBranch}</p>
-      <p className="muted">Last successful scan: {connection.lastSuccessfulSyncAt ? new Date(connection.lastSuccessfulSyncAt).toLocaleString() : "Never"}
-        {connection.lastSyncError ? ` · ${connection.lastSyncError}` : ""}</p>
-      {canManage && <div className="inline-form"><button className="button primary" disabled={busy || connection.status === "Disconnected"} onClick={() => void action(connection.id, "scans")}>Scan now</button>
-        <button className="button" disabled={busy} onClick={() => void action(connection.id, connection.status === "Disconnected" ? "reconnect" : "disconnect")}>{connection.status === "Disconnected" ? "Reconnect" : "Disconnect"}</button></div>}
-      <h3>Scan history</h3>{(scans[connection.id] ?? []).length === 0 && <p className="muted">No scans yet.</p>}
-      {(scans[connection.id] ?? []).map(scan => <div className="list-row" key={scan.id}><span className="version">{scan.status}</span><div><strong>{new Date(scan.startedAt).toLocaleString()}</strong>
-        <small>{scan.filesScanned} files · {scan.componentsDiscovered} components · {scan.dependenciesDiscovered} dependencies · {scan.warningsCount} warnings{scan.appliedAt ? " · Applied" : ""}</small>
-        {scan.errorMessage && <small>{scan.errorMessage}</small>}</div>
-        {scan.status === "Succeeded" || scan.status === "PartiallySucceeded" ? <button onClick={() => void openPreview(connection.id, scan.id)}>Review</button> : null}</div>)}
-    </section>)}
-    {review && <section className="panel"><div className="section-heading"><h2>Discovery preview</h2><button onClick={() => setReview(null)}>Close</button></div>
-      <div className="drift-summary"><span>{review.preview.newComponents.length} new</span><span>{review.preview.changedComponents.length} changed</span><span>{review.preview.missingComponents.length} missing</span><span>{review.preview.conflicts.length} conflicts</span></div>
-      {review.preview.components.map(component => <div className="list-row" key={`${component.sourcePath}:${component.externalKey}`}><span className="version">{component.type}</span><div><strong>{component.name}</strong><small>{component.sourcePath} · {component.sourceLocation}</small></div></div>)}
-      <p className="muted">{review.preview.dependencies.length} dependency candidates. Applying a scan preserves manual name and type overrides.</p>
-      {review.preview.warnings.map((warning, index) => <p className="error" key={index}>{warning.sourcePath}: {warning.message}</p>)}
-      {review.preview.conflicts.map(component => <p className="error" key={component.externalKey}>Name conflict: {component.name}. It will be skipped.</p>)}
-      {!review.preview.appliedAt && canManage && <button className="button primary" disabled={busy} onClick={() => void applyReview()}>{busy ? "Applying…" : "Apply scan"}</button>}
-      {review.preview.appliedAt && <p className="muted">Applied {new Date(review.preview.appliedAt).toLocaleString()}.</p>}
-    </section>}
+  const when = (value: string) => <time dateTime={value} title={formatWhenFull(value)}>{formatWhen(value)}</time>;
+  return <main id="main" className="ws-page">
+    <PageHead eyebrow="Connect" title="Integrations" lede="Connect a repository and scan its configuration, read-only. Review what the scan found before it changes the project." />
+    {error && <Notice>{error}</Notice>}
+    {message && <Notice tone="success">{message}</Notice>}
+    <div className="stack">
+      {project && connections.length === 0 && <section className="tile empty-state fade-in"><span className="empty-icon"><Icon name="plug" size={22} /></span><h2>No repository connected</h2>
+        <p>Connect the bundled Commerce System to scan its Docker Compose configuration. The project works without integrations too.</p>
+        {canManage && <button className="button primary" disabled={busy} onClick={() => void connectDemo()}><Icon name="plug" />Connect the bundled demo</button>}
+      </section>}
+      {connections.map(connection => <section className="panel fade-in" key={connection.id}><div className="panel-head"><h2>{connection.name}</h2><span className="chip" data-tone={connection.status === "Disconnected" ? "neutral" : "accent"}>{connection.status}</span></div>
+        <p className="connection-meta"><span><Icon name="git-branch" size={14} />{connection.defaultBranch}</span><span className="mono">{connection.repositoryUrl}</span><span>{connection.provider}</span><span><Icon name="clock" size={14} />Last successful scan: {connection.lastSuccessfulSyncAt ? when(connection.lastSuccessfulSyncAt) : "never"}</span></p>
+        {connection.lastSyncError && <p className="error">{connection.lastSyncError}</p>}
+        {canManage && <div className="inline-form"><button className="button primary" disabled={busy || connection.status === "Disconnected"} onClick={() => void action(connection.id, "scans")}><Icon name="scan-search" />Scan now</button>
+          <button className="button" disabled={busy} onClick={() => void action(connection.id, connection.status === "Disconnected" ? "reconnect" : "disconnect")}>{connection.status === "Disconnected" ? "Reconnect" : "Disconnect"}</button></div>}
+        <h3>Scan history</h3>{(scans[connection.id] ?? []).length === 0 && <p className="muted">No scans yet.</p>}
+        <ol className="feed">{(scans[connection.id] ?? []).map(scan => <li className="feed-item" key={scan.id} style={{ gridTemplateColumns: "150px minmax(0, 1fr) auto" }}><StatusPill look={scanLook(scan.status)} /><div><strong>{when(scan.startedAt)}{scan.appliedAt ? " · applied" : ""}</strong>
+          <small>{scan.filesScanned} files · {scan.componentsDiscovered} components · {scan.dependenciesDiscovered} dependencies · {scan.warningsCount} warnings</small>
+          {scan.errorMessage && <small>{scan.errorMessage}</small>}</div>
+          {scan.status === "Succeeded" || scan.status === "PartiallySucceeded" ? <button className="button small" onClick={() => void openPreview(connection.id, scan.id)}>Review</button> : <span />}</li>)}</ol>
+      </section>)}
+      {review && <section className="panel fade-in"><div className="panel-head"><h2>What the scan found</h2><button className="button ghost small" onClick={() => setReview(null)}><Icon name="x" size={14} />Close</button></div>
+        <div className="drift-summary"><span><strong>{review.preview.newComponents.length}</strong>new</span><span><strong>{review.preview.changedComponents.length}</strong>changed</span><span><strong>{review.preview.missingComponents.length}</strong>missing</span><span><strong>{review.preview.conflicts.length}</strong>conflicts</span></div>
+        {review.preview.components.map(component => <div className="list-row" key={`${component.sourcePath}:${component.externalKey}`}><span className="chip">{component.type}</span><div><strong>{component.name}</strong><small className="mono">{component.sourcePath} · {component.sourceLocation}</small></div></div>)}
+        <p className="panel-note">{review.preview.dependencies.length} dependency candidates. Applying a scan keeps your manual name and type corrections.</p>
+        {review.preview.warnings.map((warning, index) => <p className="error" key={index}>{warning.sourcePath}: {warning.message}</p>)}
+        {review.preview.conflicts.map(component => <p className="error" key={component.externalKey}>Name conflict: {component.name}. It will be skipped.</p>)}
+        {!review.preview.appliedAt && canManage && <div className="form-actions"><button className="button primary" disabled={busy} onClick={() => void applyReview()}>{busy ? "Applying…" : "Apply scan"}</button></div>}
+        {review.preview.appliedAt && <p className="panel-note">Applied {when(review.preview.appliedAt)}. <Link className="panel-link" href={`/projects/${projectId}/topology`}>Open topology<Icon name="arrow-right" size={14} /></Link></p>}
+      </section>}
+    </div>
   </main>;
 }

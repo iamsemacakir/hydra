@@ -3,11 +3,17 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import { ProjectNav } from "@/components/ProjectNav";
+import { Notice } from "@/components/app/Notice";
+import { PageHead } from "@/components/app/PageHead";
+import { Icon, type IconName } from "@/components/landing/Icon";
 import { Component, Dependency, getJson, postJson, Project, ProjectMember, sendJson } from "@/lib/api";
 
 const componentTypes = ["Frontend", "Service", "Database", "MessageBroker", "Cache", "ExternalService", "Gateway", "Worker", "Other"];
 const dependencyTypes = ["Http", "Database", "Messaging", "Cache", "Infrastructure", "External", "Other"];
+const TYPE_ICONS: Record<string, IconName> = {
+  Frontend: "layout-dashboard", Gateway: "network", Service: "box", Worker: "settings", Database: "layers",
+  MessageBroker: "activity", Cache: "zap", ExternalService: "external-link",
+};
 
 export default function ComponentsPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -65,30 +71,52 @@ export default function ComponentsPage() {
       setEditingId(null); setError("");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to save discovery override."); }
   }
-  return <main className="page">
-    <Link className="back-link" href={`/projects/${projectId}`}>← Project overview</Link><div className="eyebrow">PROJECT STRUCTURE</div>
-    <h1>{project?.name ?? "Components"}</h1><p className="lede">Register system components and the dependencies you know about.</p>
-    <ProjectNav projectId={projectId} active="Components" />
-    {error && <p className="error" role="alert">{error}</p>}
-    <section className="panel"><div className="section-heading"><h2>Components</h2><Link href={`/projects/${projectId}/topology`}>Open topology →</Link></div>
-      {components.map(component => <div className="list-row" key={component.id}><span className="version">{component.type}</span><div><strong>{component.name}</strong><small>{component.origin} · {component.discoveryStatus}{component.owner ? ` · ${component.owner}` : ""}{component.description ? ` · ${component.description}` : ""}</small>
-        {component.externalIdentifier && <small>{component.externalIdentifier}{component.isNameOverridden || component.isTypeOverridden ? " · Manual override" : ""}</small>}
-      </div>{canEdit && component.origin === "Discovered" && <button onClick={() => { setEditingId(component.id); setOverrideName(component.name); setOverrideType(component.type); }}>Correct discovery</button>}</div>)}
-      {project && components.length === 0 && <p className="muted">No components yet. Add a service, database, frontend, or other system component to start the topology.</p>}</section>
-    {editingId && <section className="panel"><h2>Correct discovered component</h2><p className="muted">Your name and type choices take precedence over later scans.</p>
-      <form className="inline-form" onSubmit={saveOverride}><label>Name<input required minLength={2} maxLength={120} value={overrideName} onChange={event => setOverrideName(event.target.value)} /></label>
-        <label>Type<select value={overrideType} onChange={event => setOverrideType(event.target.value)}>{componentTypes.map(option => <option key={option}>{option}</option>)}</select></label>
-        <button className="button primary">Save correction</button><button type="button" onClick={() => setEditingId(null)}>Cancel</button></form></section>}
-    {canEdit && <section className="panel"><h2>Add component</h2><form className="form-panel compact-form" onSubmit={createComponent}>
-      <div className="form-row"><label>Name<input required minLength={2} maxLength={120} value={name} onChange={event => setName(event.target.value)} placeholder="Payment Service" /></label><label>Type<select value={type} onChange={event => setType(event.target.value)}>{componentTypes.map(option => <option key={option}>{option}</option>)}</select></label></div>
-      <label>Description<textarea maxLength={2000} value={description} onChange={event => setDescription(event.target.value)} /></label>
-      <div className="form-row"><label>Owner<input maxLength={120} value={owner} onChange={event => setOwner(event.target.value)} /></label><label>Repository URL<input type="url" maxLength={500} value={repositoryUrl} onChange={event => setRepositoryUrl(event.target.value)} placeholder="https://…" /></label></div>
-      <button className="button primary">Add component</button></form></section>}
-    <section className="panel"><h2>Dependencies</h2>{dependencies.map(dependency => <div className="list-row" key={dependency.id}><span className="version">{dependency.type}</span><div><strong>{componentName(dependency.sourceComponentId)} → {componentName(dependency.targetComponentId)}</strong><small>{dependency.source}</small></div></div>)}{project && dependencies.length === 0 && <p className="muted">No dependencies recorded yet.</p>}</section>
-    {canEdit && components.length >= 2 && <section className="panel"><h2>Declare a dependency</h2><p className="muted">Source depends on target. Observed edges require actual supplied observations and are not created by this form.</p><form className="inline-form" onSubmit={createDependency}>
-      <label>Source<select required value={sourceId} onChange={event => setSourceId(event.target.value)}><option value="">Choose component</option>{components.map(component => <option key={component.id} value={component.id}>{component.name}</option>)}</select></label>
-      <label>Target<select required value={targetId} onChange={event => setTargetId(event.target.value)}><option value="">Choose component</option>{components.map(component => <option key={component.id} value={component.id}>{component.name}</option>)}</select></label>
-      <label>Type<select value={dependencyType} onChange={event => setDependencyType(event.target.value)}>{dependencyTypes.map(option => <option key={option}>{option}</option>)}</select></label>
-      <button className="button primary">Add dependency</button></form></section>}
+  return <main id="main" className="ws-page">
+    <PageHead eyebrow="Model" title="Components" lede="Register the parts of your system and declare what each one depends on."
+      actions={<Link className="button" href={`/projects/${projectId}/topology`}><Icon name="network" />View on the map</Link>} />
+    {error && <Notice>{error}</Notice>}
+    <div className="stack">
+      <div className="two-col">
+        <section className="panel fade-in"><div className="panel-head"><h2>Components <span className="muted">{components.length || ""}</span></h2></div>
+          <ul className="component-list">{components.map(component => <li className="component-row" key={component.id}>
+            <span className="component-icon" aria-hidden="true"><Icon name={TYPE_ICONS[component.type] ?? "box"} size={17} /></span>
+            <div><strong>{component.name}</strong>
+              <div className="component-meta"><span className="chip">{component.type}</span>{component.origin !== "Manual" && <span className="chip">{component.origin}</span>}{component.discoveryStatus && component.discoveryStatus !== "Active" && <span className="chip" data-tone="warn">{component.discoveryStatus}</span>}{(component.isNameOverridden || component.isTypeOverridden) && <span className="chip" data-tone="accent">Manual override</span>}</div>
+              {(component.owner || component.description) && <small>{[component.owner, component.description].filter(Boolean).join(" · ")}</small>}
+              {component.externalIdentifier && <small className="mono">{component.externalIdentifier}</small>}
+            </div>
+            {canEdit && component.origin === "Discovered" && <button className="button small" aria-label={`Correct the discovered name or type of ${component.name}`} onClick={() => { setEditingId(component.id); setOverrideName(component.name); setOverrideType(component.type); }}>Correct</button>}
+          </li>)}</ul>
+          {project && components.length === 0 && <p className="empty-line">No components yet. Add a service, a database, a frontend or anything else your system is made of.</p>}
+        </section>
+        <section className="panel fade-in"><div className="panel-head"><h2>Dependencies <span className="muted">{dependencies.length || ""}</span></h2></div>
+          <p className="panel-note" style={{ marginTop: -6, marginBottom: 10 }}>An arrow from A to B means A depends on B.</p>
+          <ul>{dependencies.map(dependency => <li className="dep-row" key={dependency.id}>
+            <span className="dep-path">{componentName(dependency.sourceComponentId)}<Icon name="arrow-right" size={14} />{componentName(dependency.targetComponentId)}</span>
+            <span className="dep-tags"><span className="chip">{dependency.type}</span><span className="chip">{dependency.source}</span></span>
+          </li>)}</ul>
+          {project && dependencies.length === 0 && <p className="empty-line">No dependencies recorded yet.</p>}
+        </section>
+      </div>
+
+      {editingId && <section className="panel fade-in"><h2>Correct a discovered component</h2><p className="panel-note">Your name and type win over later scans of the repository.</p>
+        <form className="inline-form" onSubmit={saveOverride} style={{ marginTop: 14 }}><label>Name<input required minLength={2} maxLength={120} value={overrideName} onChange={event => setOverrideName(event.target.value)} /></label>
+          <label>Type<select value={overrideType} onChange={event => setOverrideType(event.target.value)}>{componentTypes.map(option => <option key={option}>{option}</option>)}</select></label>
+          <button className="button primary">Save correction</button><button className="button" type="button" onClick={() => setEditingId(null)}>Cancel</button></form></section>}
+
+      {canEdit && <div className="two-col">
+        <section className="panel"><h2>Add a component</h2><form className="form-panel compact-form" onSubmit={createComponent}>
+          <div className="form-row"><label>Name<input required minLength={2} maxLength={120} value={name} onChange={event => setName(event.target.value)} placeholder="Payment Service" /></label><label>Type<select value={type} onChange={event => setType(event.target.value)}>{componentTypes.map(option => <option key={option}>{option}</option>)}</select></label></div>
+          <label>Description<textarea maxLength={2000} value={description} onChange={event => setDescription(event.target.value)} placeholder="What does it do?" /></label>
+          <div className="form-row"><label>Owner<input maxLength={120} value={owner} onChange={event => setOwner(event.target.value)} placeholder="Team or person" /></label><label>Repository URL<input type="url" maxLength={500} value={repositoryUrl} onChange={event => setRepositoryUrl(event.target.value)} placeholder="https://…" /></label></div>
+          <div className="form-actions"><button className="button primary"><Icon name="plus" />Add component</button></div></form></section>
+        {components.length >= 2 ? <section className="panel"><h2>Declare a dependency</h2><p className="panel-note">The source depends on the target. Observed dependencies come from real observations, so this form only declares.</p><form className="form-panel compact-form" onSubmit={createDependency} style={{ marginTop: 14 }}>
+          <label>Source<select required value={sourceId} onChange={event => setSourceId(event.target.value)}><option value="">Choose a component</option>{components.map(component => <option key={component.id} value={component.id}>{component.name}</option>)}</select></label>
+          <label>Depends on<select required value={targetId} onChange={event => setTargetId(event.target.value)}><option value="">Choose a component</option>{components.map(component => <option key={component.id} value={component.id}>{component.name}</option>)}</select></label>
+          <label>Type<select value={dependencyType} onChange={event => setDependencyType(event.target.value)}>{dependencyTypes.map(option => <option key={option}>{option}</option>)}</select></label>
+          <div className="form-actions"><button className="button primary"><Icon name="plus" />Add dependency</button></div></form></section>
+          : <section className="panel"><h2>Declare a dependency</h2><p className="panel-note">Add at least two components first.</p></section>}
+      </div>}
+    </div>
   </main>;
 }

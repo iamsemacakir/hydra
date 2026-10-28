@@ -2,26 +2,38 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ReactFlow, Background, Controls, Handle, MiniMap, Position, type Node, type NodeProps } from "@xyflow/react";
+import { ReactFlow, Background, Controls, Handle, MiniMap, Position, type NodeProps, type Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { apiBase, getJson, postJson, type Drift, type Environment, type Impact, type OperationalEvent, type Project, type RuntimeState, type Topology, type TopologyNode, type Deployment, type WorkItem } from "@/lib/api";
-import { mapTopology } from "@/lib/graph";
-import { ProjectNav } from "./ProjectNav";
+import { apiBase, getJson, postJson, type Drift, type Environment, type Impact, type OperationalEvent, type RuntimeState, type Topology, type Deployment, type WorkItem } from "@/lib/api";
+import { formatMetric, formatWhen, formatWhenFull, plural } from "@/lib/format";
+import { mapTopology, type ComponentNodeData } from "@/lib/graph";
+import { countHealth, deploymentLook, HEALTH_ORDER, healthLook, POTENTIALLY_AFFECTED, workStateLook } from "@/lib/status";
+import { Notice } from "./app/Notice";
+import { PageHead } from "./app/PageHead";
+import { HealthPill, SeverityPill, StatusGlyph, StatusPill, StatusText } from "./app/Status";
+import { Icon } from "./landing/Icon";
 
-type ComponentGraphNode = Node<{ component: TopologyNode; selected: boolean; impactKind: string; dimmed: boolean }, "component">;
+type ComponentGraphNode = Node<ComponentNodeData, "component">;
 
 function ComponentNode({ data }: NodeProps<ComponentGraphNode>) {
-  return <div className={`graph-node health-${data.component.health.toLowerCase()} ${data.selected ? "selected" : ""} ${data.impactKind ? `impact-${data.impactKind}` : ""} ${data.dimmed ? "dimmed" : ""}`}>
+  const { component, selected, impactKind, dimmed } = data;
+  const look = healthLook(component.health);
+  return <div className="graph-node" data-health={component.health.toLowerCase()} data-tone={look.tone} data-selected={selected} data-impact={impactKind || undefined} data-dimmed={dimmed}>
     <Handle type="target" position={Position.Top} />
-    <div className="node-top"><span className="node-type">{data.component.type}</span><span className="node-version">{data.component.version ?? "No version"}</span></div>
-    <strong>{data.component.name}</strong><span className="node-health"><span className="status-dot" />{data.component.health}</span>
+    <div className="node-top"><span className="node-type">{component.type}</span><span className="node-version">{component.version ?? "no version"}</span></div>
+    <strong className="node-name" title={component.name}>{component.name}</strong>
+    <div className="node-foot">
+      <StatusPill look={look} size="sm" />
+      {impactKind && <StatusPill look={POTENTIALLY_AFFECTED} label={impactKind === "direct" ? "Affected · direct" : "Affected · indirect"} size="sm" title="Potentially affected" />}
+    </div>
     <Handle type="source" position={Position.Bottom} />
   </div>;
 }
 const nodeTypes = { component: ComponentNode };
 
+const EDGE_SAMPLES = [["Declared", undefined], ["Discovered", "4 3"], ["Observed", "1 3"]] as const;
+
 export function TopologyWorkspace({ projectId }: { projectId: string }) {
-  const [project, setProject] = useState<Project | null>(null);
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [environmentId, setEnvironmentId] = useState("");
   const [topology, setTopology] = useState<Topology | null>(null);
@@ -39,10 +51,13 @@ export function TopologyWorkspace({ projectId }: { projectId: string }) {
   const [error, setError] = useState("");
   const [live, setLive] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [requestedComponent, setRequestedComponent] = useState<string | null>(null);
   useEffect(() => {
-    Promise.all([getJson<Project>(`/api/projects/${projectId}`), getJson<Environment[]>(`/api/projects/${projectId}/environments`)])
-      .then(([p, envs]) => { setProject(p); setEnvironments(envs);
-        const requested = new URLSearchParams(window.location.search).get("environmentId");
+    getJson<Environment[]>(`/api/projects/${projectId}/environments`)
+      .then(envs => { setEnvironments(envs);
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("environmentId");
+        setRequestedComponent(params.get("componentId"));
         setEnvironmentId(envs.find(e => e.id === requested)?.id ?? envs.find(e => e.type === "Production")?.id ?? envs[0]?.id ?? "");
       }).catch(e => setError(e.message));
   }, [projectId]);
@@ -76,6 +91,12 @@ export function TopologyWorkspace({ projectId }: { projectId: string }) {
   }, [projectId, environmentId, refresh]);
   useEffect(() => { setSelectedId(null); setSelectedEdgeId(null); setImpact(null); }, [environmentId]);
   useEffect(() => {
+    // A link from the overview can ask for a component to be selected once the topology has loaded.
+    if (!requestedComponent || !topology) return;
+    if (topology.nodes.some(node => node.id === requestedComponent)) setSelectedId(requestedComponent);
+    setRequestedComponent(null);
+  }, [requestedComponent, topology]);
+  useEffect(() => {
     if (!selectedId) { setLinkedItems([]); return; }
     let current = true;
     getJson<WorkItem[]>(`/api/components/${selectedId}/work-items`)
@@ -98,7 +119,8 @@ export function TopologyWorkspace({ projectId }: { projectId: string }) {
   const dependencies = topology?.edges.filter(e => e.source === selectedId) ?? [];
   const dependents = topology?.edges.filter(e => e.target === selectedId) ?? [];
   const componentName = (id: string | null) => topology?.nodes.find(n => n.id === id)?.name ?? "System";
-  const selectNode = (id: string) => { setSelectedId(id); setSelectedEdgeId(null); setImpact(null); };
+  const selectNode = (id: string) => { setSelectedId(id || null); setSelectedEdgeId(null); setImpact(null); };
+  const clearSelection = () => { setSelectedId(null); setSelectedEdgeId(null); setImpact(null); };
   const analyze = async () => {
     if (!selectedId) return;
     try { setImpact(await getJson<Impact>(`/api/projects/${projectId}/components/${selectedId}/impact`)); setError(""); }
@@ -109,57 +131,89 @@ export function TopologyWorkspace({ projectId }: { projectId: string }) {
     try { await postJson(`/api/dev/simulate/${mode}/${selectedId}?environmentId=${environmentId}`); setError(""); }
     catch (e) { setError((e as Error).message); }
   };
-  const totals = { healthy: topology?.nodes.filter(n => n.health === "Healthy").length ?? 0,
-    degraded: topology?.nodes.filter(n => n.health === "Degraded").length ?? 0,
-    unhealthy: topology?.nodes.filter(n => n.health === "Unhealthy").length ?? 0 };
-  return <main className="workspace">
-    <header className="workspace-header"><div><Link href="/projects" className="back-link">← Projects</Link><h1>{project?.name ?? "Topology"}</h1><span className="subtitle">Live operational topology</span></div>
-      <div className="header-status"><span className={live ? "live-indicator online" : "live-indicator"}>{live ? "Live" : "Reconnecting"}</span><span>{totals.healthy} healthy</span><span>{totals.degraded} degraded</span><span>{totals.unhealthy} unhealthy</span></div></header>
-    <ProjectNav projectId={projectId} active="Topology" />
-    <div className="workspace-toolbar"><label>Environment <select value={environmentId} onChange={e => setEnvironmentId(e.target.value)}>{environments.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label>
-      <input aria-label="Search components" placeholder="Search components…" value={search} onChange={e => setSearch(e.target.value)} />
-      <select aria-label="Filter component type" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}><option value="">All types</option>{[...new Set(topology?.nodes.map(node => node.type) ?? [])].sort().map(type => <option key={type}>{type}</option>)}</select>
-      <select aria-label="Filter health" value={healthFilter} onChange={e => setHealthFilter(e.target.value)}><option value="">All health</option>{["Healthy", "Degraded", "Unhealthy", "Unknown"].map(health => <option key={health}>{health}</option>)}</select>
-      <select aria-label="Filter dependency source" value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}><option value="">All sources</option>{["Declared", "Discovered", "Observed"].map(source => <option key={source}>{source}</option>)}</select>
-      <select aria-label="Inspect component" value={selectedId ?? ""} onChange={e => selectNode(e.target.value)}><option value="">Inspect component</option>{topology?.nodes.map(node => <option value={node.id} key={node.id}>{node.name}</option>)}</select>
-      <button onClick={() => setRefreshKey(x => x + 1)}>Refresh</button><span className="toolbar-hint">Select a component to inspect impact</span></div>
-    {error && <p className="error workspace-error">{error}</p>}
-    <div className="workspace-main"><div className="graph-area" role="region" aria-label="Interactive dependency topology">
+  const counts = countHealth(topology?.nodes ?? []);
+  const selectedDeployments = selected ? deployments.filter(d => d.componentId === selected.id).slice(0, 3) : [];
+  const selectedEvents = selected ? events.filter(e => e.componentId === selected.id).slice(0, 3) : [];
+
+  return <main id="main" className="ws-page">
+    <PageHead eyebrow="Operate" title="Topology" lede="Every component and dependency on one live map. Select a component to see what a failure could reach."
+      actions={<>
+        <span className="live" data-live={live} role="status"><span className="live-dot" aria-hidden="true" />{live ? "Live" : "Connecting…"}</span>
+        {topology && <div className="totals" aria-label="Health of the components">{HEALTH_ORDER.filter(h => h !== "Unknown" || counts.Unknown > 0).map(h => <StatusPill key={h} look={healthLook(h)} label={`${counts[h]} ${h.toLowerCase()}`} />)}</div>}
+      </>} />
+    <div className="workspace-toolbar">
+      <label>Environment <select value={environmentId} onChange={e => setEnvironmentId(e.target.value)}>{environments.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label>
+      <div className="search-field"><Icon name="search" /><input type="search" aria-label="Search components" placeholder="Search components" value={search} onChange={e => setSearch(e.target.value)} /></div>
+      <select aria-label="Filter by component type" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}><option value="">All types</option>{[...new Set(topology?.nodes.map(node => node.type) ?? [])].sort().map(type => <option key={type}>{type}</option>)}</select>
+      <select aria-label="Filter by health" value={healthFilter} onChange={e => setHealthFilter(e.target.value)}><option value="">All health</option>{HEALTH_ORDER.map(health => <option key={health}>{health}</option>)}</select>
+      <select aria-label="Filter by dependency source" value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}><option value="">All sources</option>{["Declared", "Discovered", "Observed"].map(source => <option key={source}>{source}</option>)}</select>
+      <select aria-label="Inspect a component" value={selectedId ?? ""} onChange={e => selectNode(e.target.value)}><option value="">Inspect component</option>{topology?.nodes.map(node => <option value={node.id} key={node.id}>{node.name}</option>)}</select>
+      <button className="button ghost icon-only" onClick={() => setRefreshKey(x => x + 1)} aria-label="Refresh" title="Refresh"><Icon name="refresh-cw" /></button>
+    </div>
+    {error && <Notice className="workspace-error">{error}</Notice>}
+    <div className="workspace-main fade-in"><div className="graph-area" role="region" aria-label="Interactive dependency topology">
       <ReactFlow nodes={graph.nodes} edges={graph.edges} nodeTypes={nodeTypes} onNodeClick={(_, node) => selectNode(node.id)}
-        onEdgeClick={(_, edge) => { setSelectedId(null); setImpact(null); setSelectedEdgeId(edge.id); }} fitView fitViewOptions={{ padding: 0.25 }} minZoom={0.35} maxZoom={1.5} proOptions={{ hideAttribution: true }}>
-        <Background color="var(--color-border-strong)" gap={26} size={1} /><Controls /><MiniMap nodeColor={node => {
-          const component = (node.data as ComponentGraphNode["data"]).component;
-          return component.health === "Degraded" ? "var(--color-warning)" : component.health === "Unhealthy" ? "var(--color-danger)" : "var(--color-success)";
+        onEdgeClick={(_, edge) => { setSelectedId(null); setImpact(null); setSelectedEdgeId(edge.id); }} onPaneClick={clearSelection}
+        nodesConnectable={false} fitView fitViewOptions={{ padding: { top: "72px", right: "28px", bottom: "28px", left: "28px" }, maxZoom: 1 }} minZoom={0.3} maxZoom={1.5} proOptions={{ hideAttribution: true }}>
+        <Background gap={22} size={1.2} /><Controls showInteractive={false} /><MiniMap pannable zoomable nodeBorderRadius={8} nodeColor={node => {
+          const tone = healthLook((node.data as ComponentNodeData).component.health).tone;
+          return tone === "warn" ? "var(--lp-warn)" : tone === "bad" ? "var(--lp-bad)" : tone === "ok" ? "var(--lp-ok)" : "var(--lp-line-strong)";
         }} /></ReactFlow>
-      {!topology && <div className="graph-loading">Loading topology…</div>}
-      {visibleTopology && visibleTopology.nodes.length === 0 && <div className="graph-loading">{topology?.nodes.length ? "No components match these filters." : "No components yet. Add one through the project API to build a topology."}</div>}
-      <div className="graph-legend"><span>● Healthy</span><span>● Degraded</span><span>● Unhealthy</span><span>● Unknown</span></div>
-    </div><aside className="detail-panel">
-      {selectedEdge ? <><div className="eyebrow">DEPENDENCY EVIDENCE</div><h2>{componentName(selectedEdge.source)} → {componentName(selectedEdge.target)}</h2>
-        <div className="detail-subtitle">{selectedEdge.type} · {selectedEdge.sourceKind}</div>
-        <p className="muted">The source component depends on the target. Each record below explains why this edge appears.</p>
-        <div className="detail-group"><h3>Sources</h3>{selectedEdge.evidence.length ? selectedEdge.evidence.map((entry, index) =>
+      {!topology && <div className="graph-loading">Loading the topology…</div>}
+      {visibleTopology && visibleTopology.nodes.length === 0 && <div className="graph-loading">{topology?.nodes.length ? "No components match these filters." : "No components yet. Add them on the Components page, or import a repository."}</div>}
+      <div className="graph-legend" aria-hidden="true">
+        {HEALTH_ORDER.map(h => { const look = healthLook(h); return <span key={h} data-tone={look.tone}><StatusGlyph glyph={look.glyph} />{look.label}</span>; })}
+        <span data-tone="bad"><StatusGlyph glyph="triangle-outline" />Potentially affected</span>
+        <span className="legend-sep legend-edges" />
+        {EDGE_SAMPLES.map(([label, dash]) => <span key={label} className="legend-edges"><svg className="edge-sample" viewBox="0 0 22 2" aria-hidden="true"><line x1="1" y1="1" x2="21" y2="1" strokeDasharray={dash} /></svg>{label}</span>)}
+      </div>
+    </div><aside className="detail-panel" aria-label="Details">
+      {selectedEdge ? <div className="fade-in" key={selectedEdge.id}>
+        <div className="detail-head"><div><p className="label">Dependency</p><h2>{componentName(selectedEdge.source)} → {componentName(selectedEdge.target)}</h2></div>
+          <button className="button ghost small icon-only" onClick={clearSelection} aria-label="Close details"><Icon name="x" /></button></div>
+        <div className="detail-badges"><span className="chip">{selectedEdge.type}</span><span className="chip">{selectedEdge.sourceKind}</span></div>
+        <p className="detail-intro">{componentName(selectedEdge.source)} depends on {componentName(selectedEdge.target)}. Each record below explains why this dependency is on the map.</p>
+        <div className="detail-group"><h3>Evidence</h3>{selectedEdge.evidence.length ? selectedEdge.evidence.map((entry, index) =>
           <div className="relation" key={`${entry.type}-${entry.sourcePath}-${index}`}><strong>{entry.type}</strong>
-            <small>{entry.sourcePath ?? "No source file"}{entry.sourceLocation ? ` · ${entry.sourceLocation}` : ""}</small>
+            <small className="mono">{entry.sourcePath ?? "No source file"}{entry.sourceLocation ? ` · ${entry.sourceLocation}` : ""}</small>
             {entry.description && <small>{entry.description}</small>}
-          </div>) : <p className="muted">No detailed evidence was recorded for this edge.</p>}</div>
-      </> : selected ? <><div className="eyebrow">COMPONENT DETAIL</div><h2>{selected.name}</h2><div className="detail-subtitle">{selected.type} · <span className={`text-${selected.health.toLowerCase()}`}>{selected.health}</span></div>
-        <div className="detail-group"><h3>Current state</h3><dl><dt>Version</dt><dd>{selected.version ?? "Unknown"}</dd><dt>Owner</dt><dd>{selected.owner ?? "—"}</dd><dt>Repository</dt><dd>{selected.repositoryUrl ? <a href={selected.repositoryUrl} target="_blank" rel="noreferrer">Open repository ↗</a> : "—"}</dd></dl></div>
-        <div className="detail-group"><h3>Discovery</h3><dl><dt>Origin</dt><dd>{selected.origin}</dd><dt>Status</dt><dd>{selected.discoveryStatus}</dd><dt>Last discovered</dt><dd>{selected.lastDiscoveredAt ? new Date(selected.lastDiscoveredAt).toLocaleString() : "—"}</dd></dl></div>
-        <div className="detail-group"><h3>Metrics</h3><dl><dt>CPU</dt><dd>{formatMetric(selected.metrics.cpuPercent, "%")}</dd><dt>Memory</dt><dd>{formatMetric(selected.metrics.memoryPercent, "%")}</dd><dt>Request rate</dt><dd>{formatMetric(selected.metrics.requestRate, "/s")}</dd><dt>Error rate</dt><dd>{formatMetric(selected.metrics.errorRatePercent, "%")}</dd><dt>P95 latency</dt><dd>{formatMetric(selected.metrics.latencyP95Ms, " ms")}</dd></dl></div>
-        <div className="detail-group"><h3>Dependencies</h3>{dependencies.length ? dependencies.map(e => <div className="relation" key={e.id}>{componentName(e.target)} <small>{e.type} · {e.sourceKind}</small></div>) : <p className="muted">None</p>}
-          <h3>Dependents</h3>{dependents.length ? dependents.map(e => <div className="relation" key={e.id}>{componentName(e.source)} <small>{e.type} · {e.sourceKind}</small></div>) : <p className="muted">None</p>}</div>
-        <button className="button primary full" onClick={analyze}>Analyze potential impact</button>
-        {impact && <div className="impact-results"><h3>Potentially affected</h3><strong>Direct</strong>{impact.directDependents.length ? impact.directDependents.map(x => <p key={x.id}>{x.name}</p>) : <p className="muted">None</p>}<strong>Indirect</strong>{impact.indirectDependents.length ? impact.indirectDependents.map(x => <p key={x.id}>{x.name}</p>) : <p className="muted">None</p>}</div>}
-        {process.env.NEXT_PUBLIC_ENABLE_DEMO === "true" && <div className="demo-actions"><button onClick={() => simulate("degradation")}>Simulate degradation</button><button onClick={() => simulate("recovery")}>Restore health</button></div>}
-        <div className="detail-group"><h3>Recent deployments</h3>{deployments.filter(d => d.componentId === selected.id).slice(0, 3).map(d => <div className="relation" key={d.id}>{d.version}<small>{d.status} · {new Date(d.startedAt).toLocaleString()}</small></div>)}</div>
-        <div className="detail-group"><h3>Active linked work</h3>{linkedItems.length ? linkedItems.map(item => <div className="relation" key={item.id}>#{item.sequenceNumber} {item.title}<small>{item.type} · {item.state} · {item.priority}</small></div>) : <p className="muted">No active work items linked to this component.</p>}<Link href={`/projects/${projectId}/boards`}>Open board →</Link></div>
-        <div className="detail-group"><h3>Recent events</h3>{events.filter(e => e.componentId === selected.id).slice(0, 3).map(e => <div className="relation" key={e.id}>{e.title}<small>{new Date(e.occurredAt).toLocaleString()}</small></div>)}</div>
-      </> : <div className="empty-detail"><span>◎</span><h2>Select a component</h2><p>Inspect health, deployment, dependencies, and potential impact.</p></div>}
+          </div>) : <p className="muted">No detailed evidence was recorded for this dependency.</p>}</div>
+      </div> : selected ? <div className="fade-in" key={selected.id}>
+        <div className="detail-head"><div><p className="label">{selected.type}</p><h2>{selected.name}</h2></div>
+          <button className="button ghost small icon-only" onClick={clearSelection} aria-label="Close details"><Icon name="x" /></button></div>
+        <div className="detail-badges"><HealthPill health={selected.health} />{selected.version && <span className="version">{selected.version}</span>}</div>
+        {selected.description && <p className="detail-intro">{selected.description}</p>}
+        <div className="detail-actions"><button className="button primary full" onClick={analyze}><Icon name="zap" />Analyze potential impact</button></div>
+        {impact && impact.componentId === selected.id && <div className="impact-results fade-in" role="status">
+          <h3><StatusGlyph glyph="triangle-outline" />Potentially affected</h3>
+          <p className="impact-sum">{plural(impact.directDependents.length + impact.indirectDependents.length, "component")} depend on {selected.name}, directly or through others. They may be affected if it fails.</p>
+          <h4>Direct</h4>{impact.directDependents.length ? <ul>{impact.directDependents.map(x => <li key={x.id}><StatusGlyph glyph="triangle-outline" />{x.name}</li>)}</ul> : <p className="impact-none">None</p>}
+          <h4>Indirect</h4>{impact.indirectDependents.length ? <ul>{impact.indirectDependents.map(x => <li key={x.id}><StatusGlyph glyph="triangle-outline" />{x.name}</li>)}</ul> : <p className="impact-none">None</p>}
+        </div>}
+        {process.env.NEXT_PUBLIC_ENABLE_DEMO === "true" && <div className="detail-group"><h3>Demo</h3><div className="demo-actions"><button className="button small" onClick={() => simulate("degradation")}>Simulate degradation</button><button className="button small" onClick={() => simulate("recovery")}>Restore health</button></div></div>}
+        <div className="detail-group"><h3>Metrics</h3><div className="metric-grid">
+          <div className="metric"><strong>{formatMetric(selected.metrics.cpuPercent, "%")}</strong><span>CPU</span></div>
+          <div className="metric"><strong>{formatMetric(selected.metrics.memoryPercent, "%")}</strong><span>Memory</span></div>
+          <div className="metric"><strong>{formatMetric(selected.metrics.requestRate, "/s")}</strong><span>Requests</span></div>
+          <div className="metric"><strong>{formatMetric(selected.metrics.errorRatePercent, "%")}</strong><span>Error rate</span></div>
+          <div className="metric"><strong>{formatMetric(selected.metrics.latencyP95Ms, " ms")}</strong><span>P95 latency</span></div>
+        </div></div>
+        <div className="detail-group"><h3>Details</h3><dl><dt>Version</dt><dd>{selected.version ?? "Unknown"}</dd><dt>Owner</dt><dd>{selected.owner ?? "—"}</dd><dt>Repository</dt><dd>{selected.repositoryUrl ? <a href={selected.repositoryUrl} target="_blank" rel="noreferrer">Open repository ↗</a> : "—"}</dd>
+          <dt>Origin</dt><dd>{selected.origin}</dd><dt>Discovery</dt><dd>{selected.discoveryStatus}</dd><dt>Last discovered</dt><dd>{selected.lastDiscoveredAt ? formatWhen(selected.lastDiscoveredAt) : "—"}</dd></dl></div>
+        <div className="detail-group"><h3>Depends on</h3>{dependencies.length ? dependencies.map(e => <div className="relation" key={e.id}><button className="table-link" onClick={() => selectNode(e.target)}>{componentName(e.target)}</button><small>{e.type} · {e.sourceKind}</small></div>) : <p className="muted">Nothing</p>}
+          <h3>Used by</h3>{dependents.length ? dependents.map(e => <div className="relation" key={e.id}><button className="table-link" onClick={() => selectNode(e.source)}>{componentName(e.source)}</button><small>{e.type} · {e.sourceKind}</small></div>) : <p className="muted">Nothing</p>}</div>
+        <div className="detail-group"><h3>Recent deployments</h3>{selectedDeployments.length ? selectedDeployments.map(d => <div className="relation relation-row" key={d.id}><span className="version">{d.version}</span><small><StatusText look={deploymentLook(d.status)} /> · <time dateTime={d.startedAt} title={formatWhenFull(d.startedAt)}>{formatWhen(d.startedAt)}</time></small></div>) : <p className="muted">No deployments recorded.</p>}</div>
+        <div className="detail-group"><h3>Linked work</h3>{linkedItems.length ? linkedItems.map(item => <div className="relation" key={item.id}>#{item.sequenceNumber} {item.title}<small>{item.type === "UserStory" ? "Story" : item.type} · <StatusText look={workStateLook(item.state)} /> · {item.priority}</small></div>) : <p className="muted">No active work items are linked to this component.</p>}<Link className="panel-link" href={`/projects/${projectId}/boards`}>Open board<Icon name="arrow-right" size={14} /></Link></div>
+        <div className="detail-group"><h3>Recent events</h3>{selectedEvents.length ? selectedEvents.map(e => <div className="relation" key={e.id}>{e.title}<small><time dateTime={e.occurredAt} title={formatWhenFull(e.occurredAt)}>{formatWhen(e.occurredAt)}</time></small></div>) : <p className="muted">No recent events.</p>}</div>
+      </div> : <div className="empty-detail"><span className="empty-icon"><Icon name="mouse-pointer-click" size={22} /></span><h2>Select a component</h2><p>See its health, metrics and dependencies, and what a failure could reach. Select a line to see why a dependency exists.</p></div>}
     </aside></div>
-    <section className="timeline"><div className="timeline-heading"><h2>Recent operational events</h2><Link href={`/projects/${projectId}/events`}>View all →</Link></div><div className="timeline-items">{events.map(e => <div className="timeline-item" key={e.id}><span className={`severity ${e.severity.toLowerCase()}`}>{e.severity}</span><div><strong>{e.title}</strong><small>{componentName(e.componentId)} · {new Date(e.occurredAt).toLocaleString()}</small></div></div>)}</div></section>
-    {drift && <section className="timeline"><div className="timeline-heading"><h2>Dependency provenance</h2><span className="muted">Project-wide comparison</span></div><p className="muted">Potential architecture drift reflects recorded data only. Missing observations may mean telemetry has not been supplied.</p><div className="drift-summary"><span>{drift.matching.length} declared and observed</span><span>{drift.declaredOnly.length} declared only</span><span>{drift.observedOnly.length} observed only</span><span>{drift.discovered.length} discovered</span></div>{[...drift.declaredOnly.map(edge => ({ edge, label: "Declared only" })), ...drift.observedOnly.map(edge => ({ edge, label: "Observed only" }))].map(({ edge, label }) => <div className="list-row" key={`${label}-${edge.sourceComponentId}-${edge.targetComponentId}-${edge.type}`}><span className="version">{label}</span><div><strong>{edge.sourceName} → {edge.targetName}</strong><small>{edge.type}</small></div></div>)}</section>}
+    <section className="timeline"><div className="timeline-heading"><h2>Recent events</h2><Link href={`/projects/${projectId}/events`}>All events<Icon name="arrow-right" size={14} /></Link></div>
+      {events.length > 0 ? <div className="timeline-items">{events.map(e => <div className="timeline-item" key={e.id}><SeverityPill severity={e.severity} /><div><strong>{e.title}</strong><small>{componentName(e.componentId)} · <time dateTime={e.occurredAt} title={formatWhenFull(e.occurredAt)}>{formatWhen(e.occurredAt)}</time></small></div></div>)}</div>
+        : <p className="empty-line">No events in this environment yet.</p>}</section>
+    {drift && <section className="timeline"><div className="timeline-heading"><h2>Dependency provenance</h2><span className="chip">Whole project</span></div>
+      <p className="panel-note">Declared dependencies compared with observed and discovered ones. This reflects recorded data only: a missing observation can simply mean that no telemetry was sent.</p>
+      <div className="drift-summary"><span><strong>{drift.matching.length}</strong>declared and observed</span><span><strong>{drift.declaredOnly.length}</strong>declared only</span><span><strong>{drift.observedOnly.length}</strong>observed only</span><span><strong>{drift.discovered.length}</strong>discovered</span></div>
+      {[...drift.declaredOnly.map(edge => ({ edge, label: "Declared only" })), ...drift.observedOnly.map(edge => ({ edge, label: "Observed only" }))].map(({ edge, label }) => <div className="list-row" key={`${label}-${edge.sourceComponentId}-${edge.targetComponentId}-${edge.type}`}><span className="chip">{label}</span><div><strong>{edge.sourceName} → {edge.targetName}</strong><small>{edge.type}</small></div></div>)}
+    </section>}
   </main>;
 }
-
-function formatMetric(value: number | null, unit: string) { return value == null ? "—" : `${value}${unit}`; }

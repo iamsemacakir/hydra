@@ -1,20 +1,23 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { geistMono, geistSans } from "@/components/landing/fonts";
 import { themeInitScript } from "@/components/landing/theme";
 
 export const metadata: Metadata = { title: "Hydra", description: "One live map of your services, their dependencies and their health" };
 
 /*
- * The root layout no longer reads the session, so the public landing page can be rendered
- * statically. The signed-in header now lives in app/projects/layout.tsx.
+ * The root layout does not read the session, so the public landing page can be rendered
+ * statically. The signed-in header lives in app/projects/layout.tsx.
+ *
+ * The Geist font variables sit on <html>, so every page can use them.
  *
  * The inline script runs before the first paint and sets data-landing-pref / data-landing-theme
- * on <html>, so the landing page never flashes the wrong theme. suppressHydrationWarning is
- * needed because those attributes exist only on the client's copy of <html>.
+ * on <html>, so no page flashes the wrong theme. suppressHydrationWarning is needed because
+ * those attributes exist only on the client's copy of <html>.
  */
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>

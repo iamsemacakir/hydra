@@ -3,8 +3,15 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { ProjectNav } from "@/components/ProjectNav";
+import { MapPreview } from "@/components/app/MapPreview";
+import { Notice } from "@/components/app/Notice";
+import { PageHead } from "@/components/app/PageHead";
+import { Stat } from "@/components/app/Stat";
+import { SeverityPill, StatusGlyph, StatusPill, StatusText } from "@/components/app/Status";
+import { Icon } from "@/components/landing/Icon";
 import { Deployment, Environment, getJson, OperationalEvent, postJson, Project, ProjectActivity, Topology, WorkItem } from "@/lib/api";
+import { formatWhen, formatWhenFull, plural } from "@/lib/format";
+import { countHealth, deploymentLook, HEALTH_ORDER, healthHeadline, healthLook, priorityTone, workStateLook } from "@/lib/status";
 
 export default function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -38,28 +45,86 @@ export default function ProjectPage() {
   }, [projectId]);
   useEffect(() => {
     if (!environmentId) return;
+    setTopology(null);
     Promise.all([
       getJson<Topology>(`/api/projects/${projectId}/environments/${environmentId}/topology`),
       getJson<OperationalEvent[]>(`/api/projects/${projectId}/environments/${environmentId}/events?limit=5`),
       getJson<Deployment[]>(`/api/projects/${projectId}/environments/${environmentId}/deployments`)
     ]).then(([t, e, d]) => { setTopology(t); setEvents(e); setDeployments(d.slice(0, 5)); }).catch(e => setError(e.message));
   }, [projectId, environmentId]);
-  const attention = topology?.nodes.filter(n => n.health === "Degraded" || n.health === "Unhealthy").length ?? 0;
+
+  const environment = environments.find(e => e.id === environmentId);
+  const counts = countHealth(topology?.nodes ?? []);
+  const attentionNodes = topology?.nodes.filter(n => n.health === "Degraded" || n.health === "Unhealthy") ?? [];
   const openWork = workItems.filter(item => item.state !== "Closed" && item.state !== "Removed");
   const activeBugs = openWork.filter(item => item.type === "Bug" && item.state === "Active").length;
   const componentName = (id: string | null) => topology?.nodes.find(n => n.id === id)?.name ?? "System";
-  return <main className="page">
-    <Link href="/projects" className="back-link">← Projects</Link><div className="eyebrow">SYSTEM WORKSPACE</div>
-    <h1>{project?.name ?? "Loading…"}</h1><p className="lede">{project?.description}</p>
-    <ProjectNav projectId={projectId} active="Overview" />
-    {project && environments.length === 0 && <section className="panel"><h2>Add your first environment</h2><p className="muted">This project is empty. Add an environment to start tracking its topology and deployments.</p><form className="inline-form" onSubmit={createEnvironment}><label>Name<input required minLength={2} maxLength={120} value={environmentName} onChange={e => setEnvironmentName(e.target.value)} placeholder="e.g. Production" /></label><label>Type<select value={environmentType} onChange={e => setEnvironmentType(e.target.value)}>{["Development", "Testing", "Staging", "Production", "Custom"].map(type => <option key={type}>{type}</option>)}</select></label><button className="button primary">Add environment</button></form></section>}
-    <div className="toolbar"><label>Environment <select value={environmentId} onChange={e => setEnvironmentId(e.target.value)}>{environments.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label>
-      {environmentId && <Link className="button primary" href={`/projects/${projectId}/topology?environmentId=${environmentId}`}>Open topology →</Link>}</div>
-    {error && <p className="error">{error}</p>}
-    <div className="stats"><div><strong>{openWork.length}</strong><span>Open work items</span></div><div><strong>{activeBugs}</strong><span>Active bugs</span></div><div><strong>{topology?.nodes.length ?? "—"}</strong><span>Components</span></div><div><strong>{topology?.edges.length ?? "—"}</strong><span>Dependencies</span></div><div><strong>{attention}</strong><span>Need attention</span></div></div>
-    <div className="two-col"><section className="panel"><h2>Recent events</h2>{events.map(e => <div className="list-row" key={e.id}><span className={`severity ${e.severity.toLowerCase()}`}>{e.severity}</span><div><strong>{e.title}</strong><small>{componentName(e.componentId)} · {new Date(e.occurredAt).toLocaleString()}</small></div></div>)}{events.length === 0 && <p className="muted">No events for this environment.</p>}</section>
-      <section className="panel"><h2>Recent deployments</h2>{deployments.map(d => <div className="list-row" key={d.id}><span className="version">{d.version}</span><div><strong>{componentName(d.componentId)}</strong><small>{d.status} · {new Date(d.startedAt).toLocaleString()}</small></div></div>)}{deployments.length === 0 && <p className="muted">No deployments for this environment.</p>}</section></div>
-    <div className="two-col"><section className="panel"><div className="section-heading"><h2>Board snapshot</h2><Link href={`/projects/${projectId}/boards`}>Open board →</Link></div>{openWork.slice(0, 5).map(item => <div className="list-row" key={item.id}><span className="version">#{item.sequenceNumber}</span><div><strong>{item.title}</strong><small>{item.type} · {item.state} · {item.priority}</small></div></div>)}{openWork.length === 0 && <p className="muted">No open work items. Create one from the board.</p>}</section>
-      <section className="panel"><h2>Recent activity</h2>{activity.map(entry => <div className="list-row" key={entry.id}><span className="version">{entry.kind === "WorkItem" ? "Work" : "Ops"}</span><div><strong>{entry.summary}</strong><small>{entry.actorName ? `${entry.actorName} · ` : ""}{new Date(entry.occurredAt).toLocaleString()}</small></div></div>)}{activity.length === 0 && <p className="muted">No project activity yet.</p>}</section></div>
+  const topologyHref = (componentId?: string) => `/projects/${projectId}/topology?environmentId=${environmentId}${componentId ? `&componentId=${componentId}` : ""}`;
+  const total = topology?.nodes.length ?? 0;
+
+  return <main id="main" className="ws-page">
+    <PageHead eyebrow="Overview" title={project?.name ?? "Loading…"} lede={project ? (project.description || "No description yet. Add one in Settings.") : undefined}
+      actions={environments.length > 0 && <>
+        <label className="sr-only" htmlFor="overview-environment">Environment</label>
+        <select id="overview-environment" value={environmentId} onChange={e => setEnvironmentId(e.target.value)}>{environments.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select>
+        <Link className="button primary" href={topologyHref()}><Icon name="network" />Open topology<Icon name="arrow-right" className="arrow" /></Link>
+      </>} />
+    {error && <Notice>{error}</Notice>}
+    {project && environments.length === 0 && <section className="panel callout fade-in"><div><h2>Add your first environment</h2><p className="panel-note">This project is empty. Add an environment, such as Production, to start tracking its components, deployments and health.</p></div>
+      <form className="inline-form" onSubmit={createEnvironment}><label>Name<input required minLength={2} maxLength={120} value={environmentName} onChange={e => setEnvironmentName(e.target.value)} placeholder="e.g. Production" /></label><label>Type<select value={environmentType} onChange={e => setEnvironmentType(e.target.value)}>{["Development", "Testing", "Staging", "Production", "Custom"].map(type => <option key={type}>{type}</option>)}</select></label><button className="button primary"><Icon name="plus" />Add environment</button></form></section>}
+
+    <div className="stack">
+      {environmentId && <section className="tile ov-status rise" aria-labelledby="ov-status-title">
+        <div className="ov-status-text">
+          <p className="eyebrow">{environment?.name ?? "Environment"} · health</p>
+          <h2 id="ov-status-title">{topology ? healthHeadline(counts) : "Loading health…"}</h2>
+          {topology && <p className="panel-note">{plural(total, "component")} · {plural(topology.edges.length, "dependency", "dependencies")} · updated <time dateTime={topology.generatedAt} title={formatWhenFull(topology.generatedAt)}>{formatWhen(topology.generatedAt)}</time></p>}
+          {topology && total > 0 && <>
+            {attentionNodes.length > 0
+              ? <ul className="attention">{attentionNodes.map(node => { const look = healthLook(node.health); return <li key={node.id}><Link className="attention-item" data-tone={look.tone} href={topologyHref(node.id)}>
+                  <StatusPill look={look} /><span><strong>{node.name}</strong><small>{node.type}{node.version ? ` · ${node.version}` : ""}</small></span><Icon name="arrow-right" />
+                </Link></li>; })}</ul>
+              : <p className="all-clear" data-tone="ok"><StatusGlyph glyph="check" />Nothing needs attention right now.</p>}
+            <div className="health-block">
+              <div className="health-bar" role="img" aria-label={HEALTH_ORDER.map(h => `${counts[h]} ${h.toLowerCase()}`).join(", ")}>
+                {HEALTH_ORDER.filter(h => counts[h] > 0).map(h => <span key={h} data-tone={healthLook(h).tone} style={{ flexGrow: counts[h] }} />)}
+              </div>
+              <ul className="health-legend">{HEALTH_ORDER.map(h => { const look = healthLook(h); return <li key={h} data-tone={look.tone}><StatusGlyph glyph={look.glyph} /><strong>{counts[h]}</strong>{look.label}</li>; })}</ul>
+            </div>
+          </>}
+        </div>
+        <MapPreview topology={topology} href={topologyHref()} environmentName={environment?.name ?? ""} />
+      </section>}
+
+      <div className="stats rise" style={{ margin: 0 }}>
+        <Stat icon="square-kanban" value={openWork.length} label="Open work items" />
+        <Stat icon="bug" value={activeBugs} label="Active bugs" tone={activeBugs > 0 ? "bad" : undefined} />
+        <Stat icon="box" value={topology?.nodes.length ?? "—"} label="Components" />
+        <Stat icon="git-branch" value={topology?.edges.length ?? "—"} label="Dependencies" />
+        <Stat icon="activity" value={topology ? attentionNodes.length : "—"} label="Need attention" tone={!topology ? undefined : attentionNodes.length > 0 ? "warn" : "ok"} />
+      </div>
+
+      <div className="two-col">
+        <section className="panel"><div className="panel-head"><h2>Recent events</h2><Link className="panel-link" href={`/projects/${projectId}/events`}>All events<Icon name="arrow-right" size={14} /></Link></div>
+          {events.length > 0 ? <ol className="feed">{events.map(e => <li className="feed-item" key={e.id}><SeverityPill severity={e.severity} /><div><strong>{e.title}</strong><small>{componentName(e.componentId)} · <time dateTime={e.occurredAt} title={formatWhenFull(e.occurredAt)}>{formatWhen(e.occurredAt)}</time></small></div></li>)}</ol>
+            : <p className="empty-line">No events in this environment yet.</p>}
+        </section>
+        <section className="panel"><div className="panel-head"><h2>Recent deployments</h2><Link className="panel-link" href={`/projects/${projectId}/deployments`}>All deployments<Icon name="arrow-right" size={14} /></Link></div>
+          {deployments.length > 0 ? <ol className="feed">{deployments.map(d => <li className="feed-item" key={d.id}><span className="version">{d.version}</span><div><strong>{componentName(d.componentId)}</strong><small><StatusText look={deploymentLook(d.status)} /> · <time dateTime={d.startedAt} title={formatWhenFull(d.startedAt)}>{formatWhen(d.startedAt)}</time></small></div></li>)}</ol>
+            : <p className="empty-line">No deployments recorded in this environment yet.</p>}
+        </section>
+      </div>
+
+      <div className="two-col">
+        <section className="panel"><div className="panel-head"><h2>Open work</h2><Link className="panel-link" href={`/projects/${projectId}/boards`}>Open board<Icon name="arrow-right" size={14} /></Link></div>
+          {openWork.length > 0 ? <ol className="feed">{openWork.slice(0, 5).map(item => <li className="feed-item" key={item.id}><span className="version">#{item.sequenceNumber}</span><div><strong>{item.title}</strong><small>{item.type === "UserStory" ? "Story" : item.type} · <StatusText look={workStateLook(item.state)} /> · <span className="priority" data-tone={priorityTone(item.priority)}>{item.priority}</span></small></div></li>)}</ol>
+            : <p className="empty-line">No open work items. Create one from the board.</p>}
+        </section>
+        <section className="panel"><div className="panel-head"><h2>Recent activity</h2></div>
+          {activity.length > 0 ? <ol className="feed">{activity.map(entry => <li className="feed-item" key={entry.id}><span className="chip" data-tone={entry.kind === "WorkItem" ? "accent" : "neutral"}>{entry.kind === "WorkItem" ? "Work" : "Operations"}</span><div><strong>{entry.summary}</strong><small>{entry.actorName ? `${entry.actorName} · ` : ""}<time dateTime={entry.occurredAt} title={formatWhenFull(entry.occurredAt)}>{formatWhen(entry.occurredAt)}</time></small></div></li>)}</ol>
+            : <p className="empty-line">No project activity yet.</p>}
+        </section>
+      </div>
+    </div>
   </main>;
 }

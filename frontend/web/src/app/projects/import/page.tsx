@@ -3,7 +3,22 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
+import { Notice } from "@/components/app/Notice";
+import { PageHead } from "@/components/app/PageHead";
+import { StatusPill } from "@/components/app/Status";
+import { Icon } from "@/components/landing/Icon";
 import { DiscoveryPreview, getJson, ImportStart, postJson, RepositoryScan } from "@/lib/api";
+import type { StatusLook } from "@/lib/status";
+
+function scanLook(status: RepositoryScan["status"] | undefined): StatusLook {
+  switch (status) {
+    case "Succeeded": return { tone: "ok", glyph: "check", label: "Scan finished" };
+    case "PartiallySucceeded": return { tone: "warn", glyph: "triangle", label: "Scan finished with warnings" };
+    case "Failed": return { tone: "bad", glyph: "cross", label: "Scan failed" };
+    case "Running": return { tone: "accent", glyph: "dot", label: "Scanning" };
+    default: return { tone: "neutral", glyph: "ring", label: "Queued" };
+  }
+}
 
 export default function ImportProjectPage() {
   const router = useRouter();
@@ -61,34 +76,37 @@ export default function ImportProjectPage() {
     finally { setBusy(false); }
   }
 
-  return <main className="page form-page">
-    <Link href="/projects" className="back-link">← Projects</Link><div className="eyebrow">REPOSITORY DISCOVERY</div>
-    <h1>Import an existing project</h1>
-    <p className="lede">Scan repository configuration, review the discovered architecture, then apply it to the project.</p>
-    {!imported && <form className="panel form-panel" onSubmit={begin}>
-      <h2>1 · Choose source</h2><label>Repository source<select value={source} onChange={event => setSource(event.target.value as "demo" | "github")}><option value="demo">Bundled Commerce System demo</option><option value="github">Public GitHub repository</option></select></label>
-      {source === "github" && <><label>Repository URL<input required type="url" value={repositoryUrl} onChange={event => setRepositoryUrl(event.target.value)} placeholder="https://github.com/owner/repository" /></label>
-        <label>Branch<input required value={branch} onChange={event => setBranch(event.target.value)} placeholder="main" /></label></>}
-      <p className="muted">GitHub import reads public repository configuration through the GitHub API. It never executes repository files. Private repositories and Azure DevOps follow in later integration slices.</p>
-      <h2>2 · Project details</h2><label>Project name<input required minLength={2} maxLength={120} value={name} onChange={event => setName(event.target.value)} placeholder="e.g. Imported Commerce System" /></label>
-      <label>Description<textarea maxLength={2000} value={description} onChange={event => setDescription(event.target.value)} /></label>
-      <p className="muted">Starting the scan creates a private project with an empty Production environment. Topology appears only after you review and apply the preview.</p>
-      <div className="form-actions"><Link className="button" href="/projects">Cancel</Link><button className="button primary" disabled={busy}>{busy ? "Starting…" : "Create and scan"}</button></div>
-    </form>}
-    {imported && <section className="panel"><h2>3 · Repository scan</h2><p><strong>{scan?.status ?? "Queued"}</strong> · {source === "demo" ? "Bundled Commerce System" : repositoryUrl}</p>
-      <p className="muted">{scan?.status === "Running" ? "Scanning safe configuration files and parsing Docker Compose." :
-        scan?.status === "Failed" ? scan.errorMessage : scan?.completedAt ?
-          `${scan.filesScanned} files scanned · ${scan.componentsDiscovered} components · ${scan.dependenciesDiscovered} dependencies · ${scan.warningsCount} warnings` : "Waiting for the background worker."}</p>
-      <Link href={`/projects/${imported.projectId}/settings/integrations`}>View scan history →</Link></section>}
-    {preview && <section className="panel"><h2>4 · Review discovered architecture</h2>
-      <div className="drift-summary"><span>{preview.newComponents.length} new components</span><span>{preview.changedComponents.length} changed</span><span>{preview.missingComponents.length} missing</span><span>{preview.conflicts.length} conflicts</span></div>
-      <h3>Components</h3>{preview.components.map(component => <div className="list-row" key={`${component.sourcePath}:${component.externalKey}`}><span className="version">{component.type}</span><div><strong>{component.name}</strong><small>{component.sourcePath} · {component.sourceLocation}</small></div></div>)}
-      <h3>Dependencies</h3>{preview.dependencies.map((dependency, index) => <div className="list-row" key={`${dependency.sourcePath}:${index}`}><span className="version">{dependency.type}</span><div><strong>{dependency.sourceExternalKey} → {dependency.targetExternalKey}</strong><small>{dependency.sourcePath} · {dependency.sourceLocation}</small></div></div>)}
-      {preview.missingComponents.map(component => <p className="muted" key={component.id}>Missing from this scan: {component.name}</p>)}
-      {preview.conflicts.map(component => <p className="error" key={component.externalKey}>Name conflict: {component.name}. This candidate will be skipped on apply.</p>)}
-      {preview.warnings.length > 0 && <><h3>Parser warnings</h3>{preview.warnings.map((warning, index) => <p className="error" key={index}>{warning.sourcePath}: {warning.message}</p>)}</>}
-      <div className="form-actions"><Link className="button" href={`/projects/${imported!.projectId}`}>Review later</Link><button className="button primary" disabled={busy} onClick={() => void apply()}>{busy ? "Applying…" : "Apply scan"}</button></div>
-    </section>}
-    {error && <p className="error" role="alert">{error}</p>}
+  const step = (number: number, title: string) => <h2 className="step-title"><span className="step-num">{number}</span>{title}</h2>;
+  return <main id="main" className="page form-page">
+    <Link href="/projects" className="back-link"><Icon name="arrow-left" />Projects</Link>
+    <PageHead eyebrow="Import" title="Import a repository" lede="Hydra reads the repository's configuration, shows you what it found, and adds it to the project only when you apply it." />
+    <div className="stack">
+      {!imported && <form className="panel form-panel fade-in" onSubmit={begin}>
+        {step(1, "Choose the source")}<label>Repository source<select value={source} onChange={event => setSource(event.target.value as "demo" | "github")}><option value="demo">Bundled Commerce System demo</option><option value="github">Public GitHub repository</option></select></label>
+        {source === "github" && <><label>Repository URL<input required type="url" value={repositoryUrl} onChange={event => setRepositoryUrl(event.target.value)} placeholder="https://github.com/owner/repository" /></label>
+          <label>Branch<input required value={branch} onChange={event => setBranch(event.target.value)} placeholder="main" /></label></>}
+        <p className="panel-note"><Icon name="shield-check" size={14} /> Read-only: repository files are never executed. GitHub import reads public repositories through the GitHub API; private repositories and Azure DevOps come later.</p>
+        {step(2, "Name the project")}<label>Project name<input required minLength={2} maxLength={120} value={name} onChange={event => setName(event.target.value)} placeholder="e.g. Imported Commerce System" /></label>
+        <label>Description<textarea maxLength={2000} value={description} onChange={event => setDescription(event.target.value)} /></label>
+        <p className="panel-note">Starting the scan creates a private project with an empty Production environment. The topology appears only after you review and apply what the scan found.</p>
+        <div className="form-actions"><Link className="button" href="/projects">Cancel</Link><button className="button primary" disabled={busy}><Icon name="scan-search" />{busy ? "Starting…" : "Create and scan"}</button></div>
+      </form>}
+      {imported && <section className="panel fade-in">{step(3, "Scan the repository")}
+        <p style={{ marginTop: 14 }}><StatusPill look={scanLook(scan?.status)} /> <span className="muted">{source === "demo" ? "Bundled Commerce System" : repositoryUrl}</span></p>
+        <p className="panel-note">{scan?.status === "Running" ? "Reading safe configuration files and parsing Docker Compose." :
+          scan?.status === "Failed" ? scan.errorMessage : scan?.completedAt ?
+            `${scan.filesScanned} files scanned · ${scan.componentsDiscovered} components · ${scan.dependenciesDiscovered} dependencies · ${scan.warningsCount} warnings` : "Waiting for the background worker."}</p>
+        <Link className="panel-link" href={`/projects/${imported.projectId}/settings/integrations`} style={{ marginTop: 10 }}>View scan history<Icon name="arrow-right" size={14} /></Link></section>}
+      {preview && <section className="panel fade-in">{step(4, "Review what was found")}
+        <div className="drift-summary"><span><strong>{preview.newComponents.length}</strong>new components</span><span><strong>{preview.changedComponents.length}</strong>changed</span><span><strong>{preview.missingComponents.length}</strong>missing</span><span><strong>{preview.conflicts.length}</strong>conflicts</span></div>
+        <h3>Components</h3>{preview.components.map(component => <div className="list-row" key={`${component.sourcePath}:${component.externalKey}`}><span className="chip">{component.type}</span><div><strong>{component.name}</strong><small className="mono">{component.sourcePath} · {component.sourceLocation}</small></div></div>)}
+        <h3>Dependencies</h3>{preview.dependencies.map((dependency, index) => <div className="list-row" key={`${dependency.sourcePath}:${index}`}><span className="chip">{dependency.type}</span><div><strong>{dependency.sourceExternalKey} → {dependency.targetExternalKey}</strong><small className="mono">{dependency.sourcePath} · {dependency.sourceLocation}</small></div></div>)}
+        {preview.missingComponents.map(component => <p className="muted" key={component.id}>Missing from this scan: {component.name}</p>)}
+        {preview.conflicts.map(component => <p className="error" key={component.externalKey}>Name conflict: {component.name}. This candidate will be skipped when you apply.</p>)}
+        {preview.warnings.length > 0 && <><h3>Parser warnings</h3>{preview.warnings.map((warning, index) => <p className="error" key={index}>{warning.sourcePath}: {warning.message}</p>)}</>}
+        <div className="form-actions" style={{ marginTop: 18 }}><Link className="button" href={`/projects/${imported!.projectId}`}>Review later</Link><button className="button primary" disabled={busy} onClick={() => void apply()}>{busy ? "Applying…" : "Apply scan"}</button></div>
+      </section>}
+      {error && <Notice>{error}</Notice>}
+    </div>
   </main>;
 }

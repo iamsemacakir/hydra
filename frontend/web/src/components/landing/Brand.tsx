@@ -15,9 +15,10 @@ export function LogoMark({ size = 28 }: { size?: number }) {
   );
 }
 
-export function Brand({ className }: { className?: string }) {
+/** The mark and the name. Links to the home page unless `href` says otherwise (the app links to /projects). */
+export function Brand({ className, href = "/" }: { className?: string; href?: string }) {
   return (
-    <Link href="/" className={[styles.brand, className].filter(Boolean).join(" ")}>
+    <Link href={href} className={[styles.brand, className].filter(Boolean).join(" ")}>
       <LogoMark />
       <span className={styles.brandName}>Hydra</span>
     </Link>
