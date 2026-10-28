@@ -20,6 +20,18 @@ An Owner can add someone who has already signed in using the Settings page and t
 
 For separate processes, set `Oidc__Issuer=http://keycloak.localhost:8080/realms/devops` and `Oidc__Audience=devops-api` on the API. Set `AUTH_URL=http://localhost:3000`, `AUTH_SECRET`, `AUTH_KEYCLOAK_ID=devops-web`, `AUTH_KEYCLOAK_SECRET=devops-local-only`, `AUTH_KEYCLOAK_ISSUER=http://keycloak.localhost:8080/realms/devops`, and `API_INTERNAL_URL=http://localhost:5000` on Next.js. The API and web app must use the same issuer identity, and the web client must receive an access token with the `devops-api` audience.
 
+For `npm run dev`, `npm run setup:local` (in `frontend/web`) writes these Next.js settings to `.env.local` with a freshly generated `AUTH_SECRET`; see `.env.local.example`. Without `AUTH_SECRET` Auth.js stops with `MissingSecret` and sign-in returns a server error.
+
+## Sign-in page and errors
+
+`/signin` is server-rendered on every request. It starts the Keycloak sign-in with a server action, so the password is only ever entered on Keycloak. Auth.js sends every sign-in error back to `/signin?error=<code>` (`pages.error` in `src/auth.ts`) instead of its generic error page, and the page explains it in plain words (`src/lib/authSettings.ts`):
+
+- If `AUTH_SECRET`, `AUTH_KEYCLOAK_ID`, `AUTH_KEYCLOAK_SECRET` or `AUTH_KEYCLOAK_ISSUER` is missing, the button is disabled. In development the page names the missing settings and the command that creates them; in production it only says that sign-in is unavailable.
+- `Configuration` and `OAuthSignInError` usually mean Keycloak could not be reached. In development the page shows the issuer it tried and the hosts-file tip for `keycloak.localhost`.
+- `AccessDenied` and `SessionRequired` get their own messages; anything else gets a generic "try again".
+
+Only setting names are ever shown, never values. After sign-in the visitor goes to `/projects`, or to a same-site `callbackUrl` if one was given.
+
 ## Checks
 
 The backend integration tests use an isolated test authentication scheme to verify 401 for anonymous requests, cross-project 403, viewer read access, and role-based write denial. A Compose smoke test on 2026-09-23 verified Keycloak discovery, the PKCE redirect, browser sign-in, the authenticated project list, and the existing Commerce Demo overview. The additive `OidcOwnership` migration was applied to both fresh and V1-upgraded PostgreSQL databases.

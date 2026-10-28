@@ -1,0 +1,345 @@
+/*
+ * Sign-in page. Uses the landing page's tokens (--lp-*), type and building blocks; see the
+ * "Design language" section of docs/design-system.md. Reduced motion is handled by the rule at
+ * the end of landing.module.css, which removes every animation inside .landing.
+ */
+
+.page {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 100dvh;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 32px;
+}
+
+.main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 24px;
+  padding: 0 24px 24px;
+}
+
+.formSide {
+  display: grid;
+  place-items: center;
+  padding: 32px 16px 48px;
+}
+
+.card {
+  display: grid;
+  justify-items: start;
+  gap: 20px;
+  width: min(100%, 440px);
+}
+
+.card > * {
+  animation: rise 700ms var(--lp-ease-out) both;
+}
+
+.card > :nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.card > :nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.card > :nth-child(n + 4) {
+  animation-delay: 180ms;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(38px, 4.4vw, 56px);
+  line-height: 1.02;
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+.lede {
+  font-size: 18px;
+  line-height: 30px;
+  color: var(--lp-ink-2);
+  text-wrap: pretty;
+}
+
+/* Why the visitor is back here: an error from Auth.js, or settings that are missing. */
+.notice {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in oklab, var(--lp-bad) 40%, transparent);
+  border-radius: 16px;
+  background: var(--lp-bad-soft);
+}
+
+.notice[data-tone="info"] {
+  border-color: color-mix(in oklab, var(--lp-accent) 35%, transparent);
+  background: var(--lp-accent-soft);
+}
+
+.noticeTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--lp-ink);
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 650;
+}
+
+.noticeText {
+  color: var(--lp-ink-2);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.hints {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0 0;
+  padding: 0 0 0 18px;
+  list-style: disc;
+  color: var(--lp-ink-2);
+  font-family: var(--lp-mono);
+  font-size: 12.5px;
+  line-height: 19px;
+  overflow-wrap: anywhere;
+}
+
+.form {
+  width: 100%;
+}
+
+.submit {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 54px;
+  margin: 0;
+  padding: 0 22px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: var(--lp-inverse);
+  color: var(--lp-on-inverse);
+  font: inherit;
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform var(--lp-dur-press) var(--lp-ease-out),
+    background-color var(--lp-dur-press) var(--lp-ease-out),
+    box-shadow var(--lp-dur-ui) var(--lp-ease-out);
+}
+
+/* The global button:hover rule would repaint it; keep the resting colour unless the device can hover. */
+.submit:hover {
+  background: var(--lp-inverse);
+}
+
+.submit:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.submit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.submitArrow {
+  margin-left: auto;
+  transition: transform var(--lp-dur-ui) var(--lp-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .submit:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--lp-inverse) 84%, var(--lp-accent));
+    box-shadow: 0 14px 30px -16px color-mix(in oklab, var(--lp-accent) 70%, transparent);
+  }
+
+  .submit:hover:not(:disabled) .submitArrow {
+    transform: translateX(3px);
+  }
+}
+
+.trust,
+.help {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--lp-ink-3);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.trust svg {
+  flex: none;
+  color: var(--lp-ok);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--lp-ink-2);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color var(--lp-dur-press) var(--lp-ease-out);
+}
+
+.backArrow {
+  transform: scaleX(-1);
+  transition: transform var(--lp-dur-ui) var(--lp-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .back:hover {
+    color: var(--lp-ink);
+  }
+
+  .back:hover .backArrow {
+    transform: scaleX(-1) translateX(3px);
+  }
+}
+
+/* The picture: services orbiting Hydra on the inverse panel used by the landing page's closing section. */
+.visual {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 560px;
+  border-radius: 32px;
+  background:
+    radial-gradient(60% 70% at 50% 45%, color-mix(in oklab, var(--lp-accent) 42%, transparent), transparent 70%),
+    var(--lp-inverse);
+  color: var(--lp-on-inverse);
+  overflow: hidden;
+  isolation: isolate;
+  animation: fadeIn 900ms var(--lp-ease-out) 150ms both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+}
+
+.visualStatus {
+  position: absolute;
+  top: 28px;
+  left: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid color-mix(in oklab, var(--lp-on-inverse) 18%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--lp-on-inverse) 8%, transparent);
+  color: var(--lp-on-inverse);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+}
+
+/* The orbit is drawn for a 380 px tall box; the panel here is taller, so it is shown larger. */
+.visual .visualOrbit {
+  width: 100%;
+  transform: scale(1.3);
+}
+
+.visualCaption {
+  position: absolute;
+  left: 32px;
+  right: 32px;
+  bottom: 28px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.visualTitle {
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.visualNote {
+  color: color-mix(in oklab, var(--lp-on-inverse) 60%, transparent);
+  font-family: var(--lp-mono);
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 899px) {
+  .top {
+    padding: 14px 16px;
+  }
+
+  .main {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 0 16px 16px;
+  }
+
+  .formSide {
+    padding: 24px 0 32px;
+  }
+
+  .visual {
+    min-height: 340px;
+  }
+
+  .visual .visualOrbit {
+    transform: scale(0.75);
+  }
+
+  .visualStatus {
+    top: 18px;
+    left: 20px;
+  }
+
+  .visualCaption {
+    left: 20px;
+    right: 20px;
+    bottom: 18px;
+  }
+
+  .visualTitle {
+    font-size: 18px;
+    line-height: 24px;
+  }
+}
+
+@media (max-width: 520px) {
+  .visual .visualOrbit {
+    transform: scale(0.6);
+  }
+}

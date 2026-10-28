@@ -137,4 +137,6 @@ An arrow from A to B always means A depends on B; a failure travels against the 
 
 ### Rolling it out to the signed-in pages
 
+Done so far: the landing page and the sign-in page (`src/components/signin/`), which reuses `Brand`, `ThemeToggle`, the pill, the inverse panel and the `Orbit` from the landing page.
+
 The signed-in pages (`/projects` and below) still use the Version 2 `--color-*` tokens above and the system font. To move a page over: wrap it in the Geist font variables (as `LandingPage` does), replace its `--color-*` references with the matching `--lp-*` tokens (surface, line, ink, accent for primary, ok, bad), give its cards the tile radius and border, and add the `ThemeToggle` to the app header so Dark works there too. Do it one page at a time; React Flow on the topology page needs its own colour overrides.

@@ -3575,7 +3575,8 @@
   .story *,
   .bentoSection *,
   .track *,
-  .closing * {
+  .closing *,
+  .orbit * {
     animation: none !important;
     transition: none !important;
   }

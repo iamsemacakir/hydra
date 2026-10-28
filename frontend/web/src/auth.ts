@@ -44,7 +44,9 @@ const shared = { providers: [provider], session: { strategy: "jwt" as const }, s
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...shared,
-  pages: { signIn: "/signin" },
+  // Errors come back to the sign-in page (?error=<code>), which explains them in plain words,
+  // instead of the generic Auth.js error page.
+  pages: { signIn: "/signin", error: "/signin" },
   callbacks: {
     jwt: ({ token, account }) => storeAndRefresh(token, account),
     session({ session, token }) {

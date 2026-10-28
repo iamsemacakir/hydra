@@ -51,15 +51,24 @@ In another terminal:
 ```powershell
 cd frontend/web
 npm ci
-$env:AUTH_URL = 'http://localhost:3000'
-$env:AUTH_SECRET = '<random secret of at least 32 bytes>'
-$env:AUTH_KEYCLOAK_ID = 'devops-web'
-$env:AUTH_KEYCLOAK_SECRET = 'devops-local-only'
-$env:AUTH_KEYCLOAK_ISSUER = 'http://keycloak.localhost:8080/realms/devops'
-$env:API_INTERNAL_URL = 'http://localhost:5000'
-$env:NEXT_PUBLIC_ENABLE_DEMO = 'true'
+npm run setup:local
 npm run dev
 ```
+
+`npm run setup:local` creates `frontend/web/.env.local` from `.env.local.example`: the local Keycloak client, the API address and a random `AUTH_SECRET`. Next.js reads that file on every `npm run dev`, so nothing has to be set per terminal. The file is ignored by Git and by Docker builds; running the command again only fills in what is missing.
+
+### Web app only, everything else in Docker
+
+The quickest way to work on the web app: start PostgreSQL, Keycloak and the API in Docker (this needs the root `.env` from the Docker Compose steps), then run Next.js on your machine.
+
+```powershell
+docker compose up -d postgres keycloak backend
+cd frontend/web
+npm run setup:local
+npm run dev
+```
+
+Open <http://localhost:3000/signin>. If sign-in cannot start, the sign-in page says why: in development it names any missing setting and checks that Keycloak can be reached at `http://keycloak.localhost:8080`. If your computer does not resolve `keycloak.localhost`, add `127.0.0.1 keycloak.localhost` to its hosts file.
 
 To apply migrations explicitly (required outside Development), set `ConnectionStrings__Postgres` and run:
 
