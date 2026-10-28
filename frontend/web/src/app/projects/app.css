@@ -796,7 +796,11 @@
 }
 .all-clear { display: inline-flex; align-items: center; gap: 8px; margin-top: 22px; color: var(--lp-ok); font-size: 14px; font-weight: 560; }
 
-/* The map preview: a static picture of the live topology that opens the topology page. */
+/*
+ * The map preview: a static picture of the live topology that opens the topology page. Drawn like
+ * the landing page's small maps: labelled pills, curved arrows, a dotted canvas that fades out towards
+ * the edges so the caption and the button sit on a calm surface.
+ */
 .map-preview {
   position: relative;
   display: block;
@@ -805,21 +809,58 @@
   overflow: hidden;
   border: 1px solid var(--lp-line);
   border-radius: 18px;
-  background-color: var(--lp-surface-2);
-  background-image: radial-gradient(color-mix(in oklab, var(--lp-line-strong) 80%, transparent) 1px, transparent 1.2px);
-  background-size: 16px 16px;
+  background: var(--lp-surface-2);
+  isolation: isolate;
   transition: border-color var(--lp-dur-ui) var(--lp-ease-out);
 }
+.map-preview::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(color-mix(in oklab, var(--lp-line-strong) 85%, transparent) 1px, transparent 1.3px);
+  background-size: 16px 16px;
+  -webkit-mask-image: radial-gradient(64% 62% at 50% 54%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(64% 62% at 50% 54%, #000 30%, transparent 100%);
+}
+.map-caption { display: block; padding: 14px 16px 0; color: var(--lp-ink-3); font-family: var(--app-mono); font-size: 11px; line-height: 16px; letter-spacing: 0.08em; text-transform: uppercase; }
 /* The space under the picture keeps the "Open live map" button off the lowest component. */
-.map-preview svg.map { display: block; width: 100%; height: auto; margin-bottom: 48px; }
-.map-preview .map-line { fill: none; stroke: var(--lp-edge); stroke-width: 1.25; }
-.map-preview .map-point { fill: var(--lp-surface); stroke: var(--lp-line-strong); stroke-width: 1.25; }
-.map-preview .map-glyph[data-glyph="dot"], .map-preview .map-glyph[data-glyph="triangle"] { fill: var(--tone); }
-.map-preview .map-glyph[data-glyph="ring"] { fill: none; stroke: var(--tone); stroke-width: 1.5; }
-.map-preview .map-glyph[data-glyph="cross"] { fill: none; stroke: var(--tone); stroke-width: 2; stroke-linecap: round; }
-.map-preview .map-halo { fill: var(--tone-soft); stroke: color-mix(in oklab, var(--tone) 45%, transparent); stroke-width: 1; }
-.map-preview .map-label { fill: var(--lp-ink-2); font-family: var(--app-sans); font-size: 11px; font-weight: 500; paint-order: stroke; stroke: var(--lp-surface-2); stroke-width: 4px; stroke-linejoin: round; }
-.map-preview .map-label[data-tone="warn"], .map-preview .map-label[data-tone="bad"] { fill: var(--tone-ink); font-weight: 600; }
+.map-preview svg.map { display: block; width: 100%; height: auto; max-height: 340px; margin: 6px 0 54px; padding: 0 14px; overflow: visible; }
+.map-preview .map-edge { fill: none; stroke: var(--lp-edge); stroke-width: 1.3; stroke-linecap: round; }
+.map-preview .map-arrow { fill: var(--lp-edge); }
+.map-preview .map-pill { fill: var(--lp-surface); stroke: var(--lp-line-strong); stroke-width: 1; filter: drop-shadow(0 1px 1.5px rgb(16 20 26 / 8%)); }
+.map-preview .map-node[data-attention="true"] .map-pill { fill: color-mix(in oklab, var(--tone-soft) 82%, var(--lp-surface)); stroke: color-mix(in oklab, var(--tone) 62%, var(--lp-line)); }
+.map-preview .map-halo { fill: none; stroke: color-mix(in oklab, var(--tone) 22%, transparent); stroke-width: 5; }
+.map-preview .map-name { fill: var(--lp-ink); font-family: var(--app-sans); font-weight: 560; }
+.map-preview .map-node[data-attention="true"] .map-name { fill: var(--tone-ink); font-weight: 620; }
+
+/* Too narrow for the picture: the same components, layer by layer, joined by small arrows. */
+.map-rows { display: none; }
+.map-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px 0 9px;
+  border: 1px solid var(--lp-line-strong);
+  border-radius: 999px;
+  background: var(--lp-surface);
+  color: var(--lp-ink);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 560;
+  white-space: nowrap;
+}
+.map-chip[data-attention="true"] { border-color: color-mix(in oklab, var(--tone) 62%, var(--lp-line)); background: color-mix(in oklab, var(--tone-soft) 82%, var(--lp-surface)); color: var(--tone-ink); }
+@container (max-width: 460px) {
+  .map-preview svg.map { display: none; }
+  .map-rows { display: grid; justify-items: center; padding: 12px 12px 60px; }
+  .map-rows li { position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+  .map-rows li + li { margin-top: 22px; }
+  .map-rows li + li::before { content: ""; position: absolute; top: -18px; left: 50%; width: 1.3px; height: 9px; background: var(--lp-edge); }
+  .map-rows li + li::after { content: ""; position: absolute; top: -9px; left: calc(50% - 4px); border: 4px solid transparent; border-top: 6px solid var(--lp-edge); border-bottom: 0; }
+}
+
 .map-cta {
   position: absolute;
   right: 12px;
@@ -836,12 +877,6 @@
   font-weight: 550;
 }
 .map-cta svg { transition: transform var(--lp-dur-ui) var(--lp-ease-out); }
-/* The caption sits above the picture, never on it. */
-.map-caption { display: block; padding: 12px 14px 0; color: var(--lp-ink-3); font-family: var(--app-mono); font-size: 11px; line-height: 16px; letter-spacing: 0.08em; text-transform: uppercase; }
-/* In a narrow box the picture shrinks, so its labels are drawn larger to stay readable. */
-@container (max-width: 460px) {
-  .map-preview .map-label { font-size: 15px; stroke-width: 5px; }
-}
 @media (hover: hover) and (pointer: fine) {
   .map-preview:hover { border-color: var(--lp-line-strong); }
   .map-preview:hover .map-cta svg { transform: translateX(3px); }

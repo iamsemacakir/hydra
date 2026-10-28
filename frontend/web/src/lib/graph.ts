@@ -187,38 +187,108 @@ export function mapTopology(topology: Topology, selectedId: string | null, impac
   return { nodes, edges };
 }
 
-/** Points and lines of a small, static picture of the topology (the overview's map preview). */
+/**
+ * A small, static picture of the topology (the overview's map preview), in the style of the landing
+ * page's small maps: every component is a labelled pill on the layered layout above, and every
+ * dependency a curve with an arrowhead, from the bottom of the dependent to the top of what it
+ * depends on. `rows` holds the same components layer by layer, for boxes too narrow for the picture.
+ */
+export type MiniMapNode = { id: string; name: string; label: string; health: TopologyNode["health"]; x: number; y: number };
 export type MiniMap = {
   width: number;
   height: number;
-  points: Array<{ id: string; name: string; health: TopologyNode["health"]; x: number; y: number }>;
-  lines: Array<{ id: string; x1: number; y1: number; x2: number; y2: number }>;
+  pill: { width: number; height: number };
+  font: number;
+  nodes: MiniMapNode[];
+  edges: Array<{ id: string; d: string; arrow: string }>;
+  rows: Array<Array<{ id: string; name: string; health: TopologyNode["health"] }>>;
 };
 
-export function miniMap(topology: Topology, width = 560, height = 300, padding = 36): MiniMap {
+const MAP_FONT = 11.5;
+/** A generous average glyph width of Geist, as a share of the font size, so labels always fit their pill. */
+const MAP_CHAR = 0.55;
+/** Left of the label: padding and the status glyph. Right of it: padding. */
+const MAP_LABEL_LEFT = 28;
+const MAP_LABEL_RIGHT = 16;
+const MAP_PAD = 14;
+/** The picture never shrinks below this, so a map with one or two components is not blown up. */
+const MAP_MIN = { width: 440, height: 200 };
+
+const r1 = (value: number) => Math.round(value * 10) / 10;
+const clamp = (value: number, limit: number) => Math.max(-limit, Math.min(limit, value));
+
+export function miniMap(topology: Topology): MiniMap {
   const placements = layoutTopology(topology);
-  const slots = [...placements.values()].map((p) => p.slot);
-  const depths = [...placements.values()].map((p) => p.depth);
-  const minSlot = Math.min(0, ...slots);
-  const maxSlot = Math.max(0, ...slots);
-  const maxDepth = Math.max(0, ...depths);
-  const spanX = Math.max(1, maxSlot - minSlot);
-  const scaleX = Math.min((width - padding * 2) / spanX, 150);
-  const scaleY = maxDepth ? Math.min((height - padding * 2) / maxDepth, 90) : 0;
-  const offsetX = width / 2 - ((minSlot + maxSlot) / 2) * scaleX;
-  const offsetY = height / 2 - (maxDepth / 2) * scaleY;
+  const charWidth = MAP_FONT * MAP_CHAR;
+  const longest = Math.max(0, ...topology.nodes.map((node) => node.name.length));
+  const pill = {
+    width: Math.ceil(Math.min(184, Math.max(112, longest * charWidth + MAP_LABEL_LEFT + MAP_LABEL_RIGHT))),
+    height: Math.round(MAP_FONT * 2.5),
+  };
+  const fits = Math.floor((pill.width - MAP_LABEL_LEFT - MAP_LABEL_RIGHT) / charWidth + 0.01);
+  const label = (name: string) => (name.length <= fits ? name : `${name.slice(0, Math.max(1, fits - 1)).trimEnd()}…`);
+  const stepX = pill.width + 24;
+  const stepY = pill.height + 38;
+
+  const places = [...placements.values()];
+  const minSlot = Math.min(...places.map((p) => p.slot));
+  const maxSlot = Math.max(...places.map((p) => p.slot));
+  const maxDepth = Math.max(...places.map((p) => p.depth));
+  const contentWidth = MAP_PAD * 2 + pill.width + (maxSlot - minSlot) * stepX;
+  const contentHeight = MAP_PAD * 2 + pill.height + maxDepth * stepY;
+  const width = Math.max(MAP_MIN.width, contentWidth);
+  const height = Math.max(MAP_MIN.height, contentHeight);
+  const offsetX = (width - contentWidth) / 2 + MAP_PAD + pill.width / 2;
+  const offsetY = (height - contentHeight) / 2 + MAP_PAD + pill.height / 2;
   const at = (id: string) => {
-    const place = placements.get(id) ?? { depth: 0, slot: 0 };
-    return { x: Math.round((offsetX + place.slot * scaleX) * 10) / 10, y: Math.round((offsetY + place.depth * scaleY) * 10) / 10 };
+    const place = placements.get(id) ?? { depth: 0, slot: minSlot };
+    return { x: r1(offsetX + (place.slot - minSlot) * stepX), y: r1(offsetY + place.depth * stepY) };
   };
-  return {
-    width,
-    height,
-    points: topology.nodes.map((node) => ({ id: node.id, name: node.name, health: node.health, ...at(node.id) })),
-    lines: topology.edges.map((edge) => {
-      const a = at(edge.source);
-      const b = at(edge.target);
-      return { id: edge.id, x1: a.x, y1: a.y, x2: b.x, y2: b.y };
-    }),
-  };
+
+  const halfW = pill.width / 2;
+  const halfH = pill.height / 2;
+  const edges = topology.edges.flatMap((edge) => {
+    if (!placements.has(edge.source) || !placements.has(edge.target) || edge.source === edge.target) return [];
+    const a = at(edge.source);
+    const b = at(edge.target);
+    if (b.y !== a.y) {
+      // Down to a lower layer (the usual case), or back up for an edge that closes a cycle. Lines leave
+      // and reach a pill a little towards each other, so a fan of dependencies spreads instead of bunching.
+      const dir = b.y > a.y ? 1 : -1;
+      const dx = b.x - a.x;
+      const sx = r1(a.x + clamp(dx * 0.3, halfW * 0.55));
+      const tx = r1(b.x + clamp(-dx * 0.12, halfW * 0.3));
+      const sy = r1(a.y + dir * halfH);
+      const tip = r1(b.y - dir * (halfH + 1));
+      const ey = r1(tip - dir * 6);
+      const bend = r1(Math.max(10, Math.abs(ey - sy) * 0.5));
+      return [{
+        id: edge.id,
+        d: `M${sx} ${sy}C${sx} ${r1(sy + dir * bend)} ${tx} ${r1(ey - dir * bend)} ${tx} ${ey}`,
+        arrow: `M${tx} ${tip}L${r1(tx - 4)} ${r1(tip - dir * 7)}L${r1(tx + 4)} ${r1(tip - dir * 7)}Z`,
+      }];
+    }
+    // Same layer: a low arc from side to side.
+    const dir = b.x > a.x ? 1 : -1;
+    const sx = r1(a.x + dir * halfW);
+    const tip = r1(b.x - dir * (halfW + 1));
+    const ex = r1(tip - dir * 6);
+    const lift = r1(a.y - halfH - 10);
+    return [{
+      id: edge.id,
+      d: `M${sx} ${a.y}C${r1(sx + dir * 20)} ${lift} ${r1(ex - dir * 20)} ${lift} ${ex} ${b.y}`,
+      arrow: `M${tip} ${b.y}L${r1(tip - dir * 7)} ${r1(b.y - 4)}L${r1(tip - dir * 7)} ${r1(b.y + 4)}Z`,
+    }];
+  });
+
+  const nodes = topology.nodes.map((node) => ({ id: node.id, name: node.name, label: label(node.name), health: node.health, ...at(node.id) }));
+  const byDepth = new Map<number, Array<{ id: string; name: string; health: TopologyNode["health"]; slot: number }>>();
+  for (const node of topology.nodes) {
+    const place = placements.get(node.id) ?? { depth: 0, slot: 0 };
+    byDepth.set(place.depth, [...(byDepth.get(place.depth) ?? []), { id: node.id, name: node.name, health: node.health, slot: place.slot }]);
+  }
+  const rows = [...byDepth.keys()].sort((x, y) => x - y)
+    .map((depth) => (byDepth.get(depth) ?? []).sort((x, y) => x.slot - y.slot).map(({ id, name, health }) => ({ id, name, health })));
+
+  return { width, height, pill, font: MAP_FONT, nodes, edges, rows };
 }

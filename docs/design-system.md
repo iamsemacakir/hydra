@@ -104,7 +104,7 @@ Components are in `src/components/app/`, classes in `src/app/projects/app.css`. 
 | Status | `StatusGlyph`, `StatusPill`, `StatusText`, `HealthPill`, `SeverityPill`, `DeploymentPill` | Every status, as shape plus word (see the app status table below). |
 | Health bar | `HealthBar`, `HealthLegend` | The share of each health state in an environment, with its counts. Overview and environment cards. |
 | Number tile | `Stat` (`.stats`) | A number with its label and an icon tinted when it needs attention. Five in a row from 721 px, two per row on a phone. |
-| Map preview | `MapPreview` | A static picture of the environment's topology that opens the live map. |
+| Map preview | `MapPreview`, `miniMap` in `lib/graph.ts` | A static picture of the environment's topology that opens the live map: labelled pills (status shape plus name) on the layered layout, curved arrows, a dotted canvas that fades at the edges. A box narrower than 460 px shows the components row by row instead. |
 | Notice | `Notice` | An error to act on (announced at once), information, or success. |
 | Feed | `.feed`, `.feed-item` | Events, deployments, activity: a pill or version on the left, the text on the right; stacked on a phone. |
 | Chip, version | `.chip` (`data-tone` for a tint), `.version` | Short facts (type, visibility, source) and version numbers in Geist Mono. |
