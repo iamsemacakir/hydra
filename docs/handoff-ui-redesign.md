@@ -40,7 +40,7 @@ Sema asked for three things, all in the Hydra design language of the landing pag
 - `src/lib/graph.ts`: new `layoutTopology` (every arrow points down, cycles are safe, children sit under their parents), `mapTopology` now draws curved edges with arrowheads, encodes the dependency source as solid / dashed / dotted lines, highlights the impact path, and gives nodes an initial size so the minimap works (it was always empty before). `liveMap` makes the overview's live map.
 - `src/components/TopologyWorkspace.tsx`: rebuilt UI; same data flow and SSE handling. New: clicking the empty canvas clears the selection, a close button on the detail panel, related components are clickable, and `?componentId=` preselects a component (used by the overview's attention list).
 - `src/components/landing/Icon.tsx`: more Lucide icons. `Brand.tsx`: optional `href`.
-- Later: `src/components/app/HealthBar.tsx` (`HealthBar`, `HealthLegend`, shared by the overview and the environment cards); environment cards with recorded health; `.stack-table` (tables become cards on a phone, cells carry `data-label`); `ProjectNav` scrolls the current tab into view; `infra/keycloak/themes/hydra` (Keycloak login theme); the overview's live map, design В of three options Sema chose from (`MapPreview`, `liveMap` and `failureHops` in `lib/graph.ts`, `lib/componentTypes.ts`).
+- Later: `src/components/app/HealthBar.tsx` (`HealthBar`, `HealthLegend`, shared by the overview and the environment cards); environment cards with recorded health; `.stack-table` (tables become cards on a phone, cells carry `data-label`); `ProjectNav` scrolls the current tab into view; `infra/keycloak/themes/hydra` (Keycloak login theme); the overview's live map, design В of three options Sema chose from (`MapPreview`, `liveMap` and `failureHops` in `lib/graph.ts`, `lib/componentTypes.ts`). The large example project Northstar Marketplace, created from the Projects page in demo mode through the API (`src/lib/demo`, `ExampleProject`, see `docs/example-project.md`); for large systems the live map tells its story layer by layer, and the topology page folds long provenance lists.
 
 ## How it was checked
 
@@ -52,8 +52,8 @@ Sema asked for three things, all in the Hydra design language of the landing pag
 
 ## Next steps, in order
 
-1. Run `npm run typecheck`, `npm run lint` and `npm run build` again (the live map changed).
-2. Look at the pages once against the real API (Docker) in both themes.
+1. Run `npm run typecheck`, `npm run lint` and `npm run build` again (the live map and the example project are new).
+2. Look at the pages once against the real API (Docker) in both themes, also with the large example project (Projects, Create the example).
 3. Switch the existing local realm to the login theme: Keycloak admin console, realm `devops`, Realm settings, Themes, Login theme = `hydra`, Save.
 4. When all of that is done, delete this note.
 

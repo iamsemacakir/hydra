@@ -12,6 +12,8 @@ import { InView } from "../landing/motion/InView";
 import { StatusGlyph } from "./Status";
 
 const ms = (value: number) => `${Math.round(value)}ms`;
+/** Pictures wider than this (four columns of cards and more) are told layer by layer. */
+const ROWS_FROM_WIDTH = 860;
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 const stateOf = (card: MapCard) => (card.hop === 0 ? "problem" : card.hop !== null ? "affected" : "plain");
 
@@ -100,8 +102,8 @@ function Chip({ card }: { card: MapCard }) {
  * arrows to them grow, their health shows, degraded and unhealthy components light up, and from each a red
  * arrow climbs to what depends on it, which lights up as potentially affected, one hop at a time. Then it
  * rests on that last frame, which is also what reduced motion shows. Replay tells it again. The timing comes
- * from `liveMap` (lib/graph.ts) and runs as CSS animations (app.css); a box narrower than 520 px shows the
- * same story layer by layer.
+ * from `liveMap` (lib/graph.ts) and runs as CSS animations (app.css). A box narrower than 520 px, and a
+ * system too wide to draw legibly (more than three columns of cards), show the same story layer by layer.
  */
 export function MapPreview({ topology, href, environmentName }: { topology: Topology | null; href: string; environmentName: string }) {
   const [run, setRun] = useState(0);
@@ -115,8 +117,10 @@ export function MapPreview({ topology, href, environmentName }: { topology: Topo
   }
   const map = liveMap(topology);
   const sayings = narration(topology, map);
+  // More than three columns of cards would be too small to read in the box: tell it layer by layer instead.
+  const rows = map.width > ROWS_FROM_WIDTH;
   return (
-    <div className="map-preview">
+    <div className={rows ? "map-preview map-preview-rows" : "map-preview"}>
       <InView className="map-stage">
         <div className="map-head">
           <p className="map-caption">{environmentName} · live map</p>

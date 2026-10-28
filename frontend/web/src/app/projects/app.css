@@ -752,6 +752,24 @@
   .project-card:hover .project-open svg { transform: translateX(3px); }
 }
 
+/* The demo-mode offer of a large example project (ExampleProject). */
+.example-panel { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px 20px; margin-top: 24px; }
+.example-icon { display: grid; place-items: center; align-self: start; width: 44px; height: 44px; border-radius: 13px; background: var(--lp-accent-soft); color: var(--lp-accent); }
+.example-text .eyebrow { margin-bottom: 4px; }
+.example-text h2 { margin-bottom: 6px; }
+.example-text p:last-child { max-width: 760px; color: var(--lp-ink-2); font-size: 14.5px; line-height: 22px; }
+.example-action { display: flex; justify-content: flex-end; min-width: 240px; }
+.example-progress { display: grid; gap: 8px; width: 240px; }
+.example-progress p { display: flex; justify-content: space-between; gap: 12px; color: var(--lp-ink-2); font-size: 13px; line-height: 18px; font-weight: 550; }
+.example-track { height: 6px; overflow: hidden; border-radius: 999px; background: var(--lp-surface-2); }
+.example-track span { display: block; height: 100%; border-radius: inherit; background: var(--lp-accent); transition: width var(--lp-dur-ui) var(--lp-ease-out); }
+.example-notice { grid-column: 1 / -1; }
+@media (max-width: 760px) {
+  .example-panel { grid-template-columns: auto minmax(0, 1fr); }
+  .example-action { grid-column: 1 / -1; justify-content: flex-start; min-width: 0; }
+  .example-progress { width: 100%; }
+}
+
 /* ------------------------------------------------------------------ */
 /* Project overview                                                    */
 /* ------------------------------------------------------------------ */
@@ -920,8 +938,19 @@
 .map-say > span { animation: map-say-in 300ms ease var(--in) both; }
 .map-say > span[data-out] { opacity: 0; animation: map-say-in 300ms ease var(--in) both, map-out 300ms ease var(--out) forwards; }
 
-/* Too narrow for the picture: the same components layer by layer, joined by small arrows. */
-.map-rows { display: none; }
+/*
+ * The same story layer by layer: chips per layer, joined by small arrows. Used when the box is too narrow
+ * for the picture (container query), and for large systems whose picture would be too small to read
+ * (.map-preview-rows, set by MapPreview).
+ */
+.map-rows { display: none; justify-items: center; margin: 0; padding: 0; list-style: none; }
+.map-rows li { position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; animation: map-rise 520ms var(--lp-ease-out) var(--show) both; }
+.map-rows li + li { margin-top: 34px; }
+.map-row-link { position: absolute; top: -30px; left: calc(50% - 0.75px); width: 1.5px; height: 17px; background: var(--lp-line-strong); transform-origin: top; animation: map-grow 420ms cubic-bezier(0.4, 0, 0.2, 1) var(--draw) both; }
+.map-row-link::after { content: ""; position: absolute; left: -3.25px; bottom: -6px; border: 4px solid transparent; border-top: 6px solid var(--lp-line-strong); border-bottom: 0; animation: map-in 160ms ease-out calc(var(--draw) + 320ms) both; }
+.map-rows li[data-climb] .map-row-link::after { opacity: 0; animation: map-in 160ms ease-out calc(var(--draw) + 320ms) both, map-out 160ms ease var(--climb) forwards; }
+.map-row-climb { position: absolute; top: -24px; left: calc(50% - 1.3px); width: 2.6px; height: 20px; background: var(--lp-bad); transform-origin: bottom; animation: map-grow 700ms cubic-bezier(0.4, 0, 0.2, 1) var(--climb) both; }
+.map-row-climb::after { content: ""; position: absolute; left: -3.2px; top: -7px; border: 4.5px solid transparent; border-bottom: 7px solid var(--lp-bad); border-top: 0; animation: map-in 200ms ease-out calc(var(--climb) + 560ms) both; }
 .map-chip { position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 11px 0 9px; border: 1px solid var(--lp-line); border-radius: 999px; background: var(--lp-surface); color: var(--lp-ink); font-size: 12px; line-height: 16px; font-weight: 600; white-space: nowrap; }
 .map-chip-glyph { display: inline-grid; flex: none; }
 .map-chip-glyph > span { grid-area: 1 / 1; display: grid; place-items: center; }
@@ -934,15 +963,11 @@
 @container (max-width: 520px) {
   .map-svg { display: none; }
   .map-body { padding: 12px 12px 8px; }
-  .map-rows { display: grid; justify-items: center; margin: 0; padding: 0; list-style: none; }
-  .map-rows li { position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; animation: map-rise 520ms var(--lp-ease-out) var(--show) both; }
-  .map-rows li + li { margin-top: 34px; }
-  .map-row-link { position: absolute; top: -30px; left: calc(50% - 0.75px); width: 1.5px; height: 17px; background: var(--lp-line-strong); transform-origin: top; animation: map-grow 420ms cubic-bezier(0.4, 0, 0.2, 1) var(--draw) both; }
-  .map-row-link::after { content: ""; position: absolute; left: -3.25px; bottom: -6px; border: 4px solid transparent; border-top: 6px solid var(--lp-line-strong); border-bottom: 0; animation: map-in 160ms ease-out calc(var(--draw) + 320ms) both; }
-  .map-rows li[data-climb] .map-row-link::after { opacity: 0; animation: map-in 160ms ease-out calc(var(--draw) + 320ms) both, map-out 160ms ease var(--climb) forwards; }
-  .map-row-climb { position: absolute; top: -24px; left: calc(50% - 1.3px); width: 2.6px; height: 20px; background: var(--lp-bad); transform-origin: bottom; animation: map-grow 700ms cubic-bezier(0.4, 0, 0.2, 1) var(--climb) both; }
-  .map-row-climb::after { content: ""; position: absolute; left: -3.2px; top: -7px; border: 4.5px solid transparent; border-bottom: 7px solid var(--lp-bad); border-top: 0; animation: map-in 200ms ease-out calc(var(--climb) + 560ms) both; }
+  .map-rows { display: grid; }
 }
+.map-preview-rows .map-svg { display: none; }
+.map-preview-rows .map-body { padding: 14px 16px 10px; }
+.map-preview-rows .map-rows { display: grid; }
 
 @keyframes map-appear { from { opacity: 0; transform: scale(0.8); } }
 @keyframes map-rise { from { opacity: 0; transform: translateY(6px); } }
@@ -1154,6 +1179,11 @@
 .drift-summary { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
 .drift-summary span { display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border: 1px solid var(--lp-line); border-radius: 999px; background: var(--lp-surface-2); color: var(--lp-ink-2); font-size: 13px; font-weight: 500; }
 .drift-summary strong { margin-right: 4px; color: var(--lp-ink); font-variant-numeric: tabular-nums; }
+.drift-more { margin-top: 4px; }
+.drift-more > summary { display: inline-flex; align-items: center; gap: 10px; min-height: 40px; color: var(--lp-accent); font-size: 14px; font-weight: 550; list-style: none; cursor: pointer; }
+.drift-more > summary::-webkit-details-marker { display: none; }
+.drift-more > summary::before { content: ""; width: 7px; height: 7px; border-right: 1.6px solid currentColor; border-bottom: 1.6px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform var(--lp-dur-ui) var(--lp-ease-out); }
+.drift-more:not([open]) > summary::before { transform: rotate(-45deg); }
 
 /* ------------------------------------------------------------------ */
 /* Board                                                               */

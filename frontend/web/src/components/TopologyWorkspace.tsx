@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ReactFlow, Background, Controls, Handle, MiniMap, Position, type NodeProps, type Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { apiBase, getJson, postJson, type Drift, type Environment, type Impact, type OperationalEvent, type RuntimeState, type Topology, type Deployment, type WorkItem } from "@/lib/api";
+import { apiBase, getJson, postJson, type Drift, type DriftEdge, type Environment, type Impact, type OperationalEvent, type RuntimeState, type Topology, type Deployment, type WorkItem } from "@/lib/api";
 import { formatMetric, formatWhen, formatWhenFull, plural } from "@/lib/format";
 import { mapTopology, type ComponentNodeData } from "@/lib/graph";
 import { countHealth, deploymentLook, HEALTH_ORDER, healthLook, POTENTIALLY_AFFECTED, workStateLook } from "@/lib/status";
@@ -32,6 +32,13 @@ function ComponentNode({ data }: NodeProps<ComponentGraphNode>) {
 const nodeTypes = { component: ComponentNode };
 
 const EDGE_SAMPLES = [["Declared", undefined], ["Discovered", "4 3"], ["Observed", "1 3"]] as const;
+
+/** Up to this many declared-only dependencies are listed; more are folded away (large systems have dozens). */
+const DRIFT_ROWS_SHOWN = 8;
+
+function driftRow({ edge, label }: { edge: DriftEdge; label: string }) {
+  return <div className="list-row" key={`${label}-${edge.sourceComponentId}-${edge.targetComponentId}-${edge.type}`}><span className="chip">{label}</span><div><strong>{edge.sourceName} → {edge.targetName}</strong><small>{edge.type}</small></div></div>;
+}
 
 export function TopologyWorkspace({ projectId }: { projectId: string }) {
   const [environments, setEnvironments] = useState<Environment[]>([]);
@@ -214,7 +221,10 @@ export function TopologyWorkspace({ projectId }: { projectId: string }) {
     {drift && <section className="timeline"><div className="timeline-heading"><h2>Dependency provenance</h2><span className="chip">Whole project</span></div>
       <p className="panel-note">Declared dependencies compared with observed and discovered ones. This reflects recorded data only: a missing observation can simply mean that no telemetry was sent.</p>
       <div className="drift-summary"><span><strong>{drift.matching.length}</strong>declared and observed</span><span><strong>{drift.declaredOnly.length}</strong>declared only</span><span><strong>{drift.observedOnly.length}</strong>observed only</span><span><strong>{drift.discovered.length}</strong>discovered</span></div>
-      {[...drift.declaredOnly.map(edge => ({ edge, label: "Declared only" })), ...drift.observedOnly.map(edge => ({ edge, label: "Observed only" }))].map(({ edge, label }) => <div className="list-row" key={`${label}-${edge.sourceComponentId}-${edge.targetComponentId}-${edge.type}`}><span className="chip">{label}</span><div><strong>{edge.sourceName} → {edge.targetName}</strong><small>{edge.type}</small></div></div>)}
+      {[...drift.observedOnly.map(edge => ({ edge, label: "Observed only" })), ...drift.discovered.map(edge => ({ edge, label: "Discovered" }))].map(driftRow)}
+      {drift.declaredOnly.length > 0 && (drift.declaredOnly.length <= DRIFT_ROWS_SHOWN
+        ? drift.declaredOnly.map(edge => driftRow({ edge, label: "Declared only" }))
+        : <details className="drift-more"><summary>Declared only ({drift.declaredOnly.length})</summary>{drift.declaredOnly.map(edge => driftRow({ edge, label: "Declared only" }))}</details>)}
     </section>}
   </main>;
 }

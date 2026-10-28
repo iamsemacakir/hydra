@@ -89,6 +89,8 @@ For the Version 2 planning-to-operations flow, open Commerce Demo → Boards, cr
 
 The buttons call development-only API endpoints. Alternatively, update any component through `PUT /api/projects/{projectId}/environments/{environmentId}/components/{componentId}/runtime`.
 
+To see a much larger system, open **Projects** and click **Create the example** under *Try Hydra with a large example* (also with `NEXT_PUBLIC_ENABLE_DEMO=true`). It creates Northstar Marketplace through the API: 42 components, 70 dependencies, 4 environments, deployment history, recorded health and a full board. See [docs/example-project.md](docs/example-project.md).
+
 ## Checks
 
 ```powershell
