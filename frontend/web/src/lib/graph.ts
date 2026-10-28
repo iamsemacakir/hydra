@@ -188,20 +188,43 @@ export function mapTopology(topology: Topology, selectedId: string | null, impac
 }
 
 /**
- * A small, static picture of the topology (the overview's map preview), in the style of the landing
- * page's small maps: every component is a labelled pill on the layered layout above, and every
- * dependency a curve with an arrowhead, from the bottom of the dependent to the top of what it
- * depends on. `rows` holds the same components layer by layer, for boxes too narrow for the picture.
+ * A small picture of the topology (the overview's map preview): every component is a labelled pill
+ * on the layered layout above, and every dependency a curve with an arrowhead, from the bottom of the
+ * dependent to the top of what it depends on. `rows` holds the same components layer by layer, for
+ * boxes too narrow for the picture.
+ *
+ * It also carries what the preview animates: the layer of each pill and line (they appear top to
+ * bottom), and how far each component is from a degraded or unhealthy one against the arrows (`hop`,
+ * 0 for the problem itself, 1 for what depends on it directly, and so on). Those are the components a
+ * failure could reach: potentially affected, never certainly.
  */
-export type MiniMapNode = { id: string; name: string; label: string; health: TopologyNode["health"]; x: number; y: number };
+export type MiniMapNode = { id: string; name: string; label: string; health: TopologyNode["health"]; x: number; y: number; depth: number; hop: number | null };
+export type MiniMapEdge = {
+  id: string;
+  /** The curve, from the dependent to what it depends on. */
+  d: string;
+  /** The same curve the other way, for a failure travelling back. */
+  back: string;
+  arrow: string;
+  /** Slightly generous length, for stroke-dash drawing. */
+  length: number;
+  /** Layer of the dependent. */
+  depth: number;
+  /** When a failure travels back along this line: the hop of the component it reaches; null if it does not. */
+  ripple: number | null;
+};
 export type MiniMap = {
   width: number;
   height: number;
   pill: { width: number; height: number };
   font: number;
   nodes: MiniMapNode[];
-  edges: Array<{ id: string; d: string; arrow: string }>;
-  rows: Array<Array<{ id: string; name: string; health: TopologyNode["health"] }>>;
+  edges: MiniMapEdge[];
+  rows: Array<Array<{ id: string; name: string; health: TopologyNode["health"]; depth: number; hop: number | null }>>;
+  /** Components that depend, directly or not, on a degraded or unhealthy one. */
+  affected: number;
+  /** Hops from a problem to the furthest of them (0 when none). */
+  reach: number;
 };
 
 const MAP_FONT = 11.5;
@@ -210,15 +233,35 @@ const MAP_CHAR = 0.55;
 /** Left of the label: padding and the status glyph. Right of it: padding. */
 const MAP_LABEL_LEFT = 28;
 const MAP_LABEL_RIGHT = 16;
-const MAP_PAD = 14;
+const MAP_PAD = 16;
 /** The picture never shrinks below this, so a map with one or two components is not blown up. */
 const MAP_MIN = { width: 440, height: 200 };
 
 const r1 = (value: number) => Math.round(value * 10) / 10;
 const clamp = (value: number, limit: number) => Math.max(-limit, Math.min(limit, value));
+const isProblem = (health: TopologyNode["health"]) => health === "Degraded" || health === "Unhealthy";
+
+/** Distance from the nearest degraded or unhealthy component, against the arrows (breadth first, safe on cycles). */
+export function failureHops(topology: Pick<Topology, "nodes" | "edges">): Map<string, number> {
+  const dependents = new Map<string, string[]>();
+  for (const edge of topology.edges) dependents.set(edge.target, [...(dependents.get(edge.target) ?? []), edge.source]);
+  const hops = new Map<string, number>();
+  const queue = topology.nodes.filter((node) => isProblem(node.health)).map((node) => node.id);
+  for (const id of queue) hops.set(id, 0);
+  for (let i = 0; i < queue.length; i++) {
+    const id = queue[i];
+    for (const dependent of dependents.get(id) ?? []) {
+      if (hops.has(dependent)) continue;
+      hops.set(dependent, (hops.get(id) ?? 0) + 1);
+      queue.push(dependent);
+    }
+  }
+  return hops;
+}
 
 export function miniMap(topology: Topology): MiniMap {
   const placements = layoutTopology(topology);
+  const hops = failureHops(topology);
   const charWidth = MAP_FONT * MAP_CHAR;
   const longest = Math.max(0, ...topology.nodes.map((node) => node.name.length));
   const pill = {
@@ -244,13 +287,20 @@ export function miniMap(topology: Topology): MiniMap {
     const place = placements.get(id) ?? { depth: 0, slot: minSlot };
     return { x: r1(offsetX + (place.slot - minSlot) * stepX), y: r1(offsetY + place.depth * stepY) };
   };
+  const depthOf = (id: string) => placements.get(id)?.depth ?? 0;
+  const rippleOf = (source: string, target: string) => {
+    const from = hops.get(target);
+    const to = hops.get(source);
+    return from !== undefined && to !== undefined && to === from + 1 ? to : null;
+  };
 
   const halfW = pill.width / 2;
   const halfH = pill.height / 2;
-  const edges = topology.edges.flatMap((edge) => {
+  const edges = topology.edges.flatMap((edge): MiniMapEdge[] => {
     if (!placements.has(edge.source) || !placements.has(edge.target) || edge.source === edge.target) return [];
     const a = at(edge.source);
     const b = at(edge.target);
+    const common = { id: edge.id, depth: depthOf(edge.source), ripple: rippleOf(edge.source, edge.target) };
     if (b.y !== a.y) {
       // Down to a lower layer (the usual case), or back up for an edge that closes a cycle. Lines leave
       // and reach a pill a little towards each other, so a fan of dependencies spreads instead of bunching.
@@ -262,10 +312,14 @@ export function miniMap(topology: Topology): MiniMap {
       const tip = r1(b.y - dir * (halfH + 1));
       const ey = r1(tip - dir * 6);
       const bend = r1(Math.max(10, Math.abs(ey - sy) * 0.5));
+      const c1 = r1(sy + dir * bend);
+      const c2 = r1(ey - dir * bend);
       return [{
-        id: edge.id,
-        d: `M${sx} ${sy}C${sx} ${r1(sy + dir * bend)} ${tx} ${r1(ey - dir * bend)} ${tx} ${ey}`,
+        ...common,
+        d: `M${sx} ${sy}C${sx} ${c1} ${tx} ${c2} ${tx} ${ey}`,
+        back: `M${tx} ${ey}C${tx} ${c2} ${sx} ${c1} ${sx} ${sy}`,
         arrow: `M${tx} ${tip}L${r1(tx - 4)} ${r1(tip - dir * 7)}L${r1(tx + 4)} ${r1(tip - dir * 7)}Z`,
+        length: Math.round(Math.hypot(tx - sx, ey - sy) * 1.2 + 10),
       }];
     }
     // Same layer: a low arc from side to side.
@@ -275,20 +329,28 @@ export function miniMap(topology: Topology): MiniMap {
     const ex = r1(tip - dir * 6);
     const lift = r1(a.y - halfH - 10);
     return [{
-      id: edge.id,
+      ...common,
       d: `M${sx} ${a.y}C${r1(sx + dir * 20)} ${lift} ${r1(ex - dir * 20)} ${lift} ${ex} ${b.y}`,
+      back: `M${ex} ${b.y}C${r1(ex - dir * 20)} ${lift} ${r1(sx + dir * 20)} ${lift} ${sx} ${a.y}`,
       arrow: `M${tip} ${b.y}L${r1(tip - dir * 7)} ${r1(b.y - 4)}L${r1(tip - dir * 7)} ${r1(b.y + 4)}Z`,
+      length: Math.round(Math.abs(ex - sx) * 1.3 + 30),
     }];
   });
 
-  const nodes = topology.nodes.map((node) => ({ id: node.id, name: node.name, label: label(node.name), health: node.health, ...at(node.id) }));
+  const hopOf = (id: string) => hops.get(id) ?? null;
+  const nodes = topology.nodes.map((node) => ({
+    id: node.id, name: node.name, label: label(node.name), health: node.health, ...at(node.id), depth: depthOf(node.id), hop: hopOf(node.id),
+  }));
   const byDepth = new Map<number, Array<{ id: string; name: string; health: TopologyNode["health"]; slot: number }>>();
   for (const node of topology.nodes) {
     const place = placements.get(node.id) ?? { depth: 0, slot: 0 };
     byDepth.set(place.depth, [...(byDepth.get(place.depth) ?? []), { id: node.id, name: node.name, health: node.health, slot: place.slot }]);
   }
   const rows = [...byDepth.keys()].sort((x, y) => x - y)
-    .map((depth) => (byDepth.get(depth) ?? []).sort((x, y) => x.slot - y.slot).map(({ id, name, health }) => ({ id, name, health })));
+    .map((depth) => (byDepth.get(depth) ?? []).sort((x, y) => x.slot - y.slot)
+      .map(({ id, name, health }) => ({ id, name, health, depth, hop: hopOf(id) })));
+  const affected = [...hops.values()].filter((hop) => hop > 0).length;
+  const reach = Math.max(0, ...hops.values());
 
-  return { width, height, pill, font: MAP_FONT, nodes, edges, rows };
+  return { width, height, pill, font: MAP_FONT, nodes, edges, rows, affected, reach };
 }

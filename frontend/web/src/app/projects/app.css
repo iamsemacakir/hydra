@@ -797,91 +797,155 @@
 .all-clear { display: inline-flex; align-items: center; gap: 8px; margin-top: 22px; color: var(--lp-ok); font-size: 14px; font-weight: 560; }
 
 /*
- * The map preview: a static picture of the live topology that opens the topology page. Drawn like
- * the landing page's small maps: labelled pills, curved arrows, a dotted canvas that fades out towards
- * the edges so the caption and the button sit on a calm surface.
+ * The overview's live map: a dark stage with an indigo glow (like the picture on the sign-in page),
+ * glass pills and curved arrows. It is dark in both themes, so it uses the --lp-stage-* tokens.
+ *
+ * Motion, all with the same calm rhythm and only while the map is on screen (InView sets data-inview):
+ * - draw-in, once: pills rise in layer by layer (--d), then each line draws itself and its arrow appears;
+ * - flow: a soft light runs along every line, top to bottom, every 6 s;
+ * - pulse: degraded and unhealthy components breathe;
+ * - ripple: every 9 s, red travels back against the arrows from each problem, hop by hop (--h), the
+ *   components it reaches show as potentially affected, the line under the map says so, then all fades.
+ * Resting styles are the recorded state (lines drawn, no ripple), which is what reduced motion shows.
  */
 .map-preview {
   position: relative;
-  display: block;
-  min-height: 260px;
-  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
   overflow: hidden;
-  border: 1px solid var(--lp-line);
+  border: 1px solid color-mix(in oklab, var(--lp-stage) 75%, var(--lp-line));
   border-radius: 18px;
-  background: var(--lp-surface-2);
+  background:
+    radial-gradient(60% 62% at 50% 46%, color-mix(in oklab, var(--lp-stage-accent) 24%, transparent), transparent 72%),
+    radial-gradient(45% 50% at 94% 100%, color-mix(in oklab, var(--lp-stage-accent-2) 10%, transparent), transparent 70%),
+    var(--lp-stage);
+  color: var(--lp-stage-ink);
+  container-type: inline-size;
   isolation: isolate;
-  transition: border-color var(--lp-dur-ui) var(--lp-ease-out);
+  transition: border-color var(--lp-dur-ui) var(--lp-ease-out), box-shadow var(--lp-dur-ui) var(--lp-ease-out);
 }
+/* Faint dots that fade out towards the edges. */
 .map-preview::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
-  background-image: radial-gradient(color-mix(in oklab, var(--lp-line-strong) 85%, transparent) 1px, transparent 1.3px);
+  background-image: radial-gradient(var(--lp-stage-dot) 1px, transparent 1.3px);
   background-size: 16px 16px;
-  -webkit-mask-image: radial-gradient(64% 62% at 50% 54%, #000 30%, transparent 100%);
-  mask-image: radial-gradient(64% 62% at 50% 54%, #000 30%, transparent 100%);
+  -webkit-mask-image: radial-gradient(62% 60% at 50% 50%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(62% 60% at 50% 50%, #000 30%, transparent 100%);
 }
-.map-caption { display: block; padding: 14px 16px 0; color: var(--lp-ink-3); font-family: var(--app-mono); font-size: 11px; line-height: 16px; letter-spacing: 0.08em; text-transform: uppercase; }
-/* The space under the picture keeps the "Open live map" button off the lowest component. */
-.map-preview svg.map { display: block; width: 100%; height: auto; max-height: 340px; margin: 6px 0 54px; padding: 0 14px; overflow: visible; }
-.map-preview .map-edge { fill: none; stroke: var(--lp-edge); stroke-width: 1.3; stroke-linecap: round; }
-.map-preview .map-arrow { fill: var(--lp-edge); }
-.map-preview .map-pill { fill: var(--lp-surface); stroke: var(--lp-line-strong); stroke-width: 1; filter: drop-shadow(0 1px 1.5px rgb(16 20 26 / 8%)); }
-.map-preview .map-node[data-attention="true"] .map-pill { fill: color-mix(in oklab, var(--tone-soft) 82%, var(--lp-surface)); stroke: color-mix(in oklab, var(--tone) 62%, var(--lp-line)); }
-.map-preview .map-halo { fill: none; stroke: color-mix(in oklab, var(--tone) 22%, transparent); stroke-width: 5; }
-.map-preview .map-name { fill: var(--lp-ink); font-family: var(--app-sans); font-weight: 560; }
-.map-preview .map-node[data-attention="true"] .map-name { fill: var(--tone-ink); font-weight: 620; }
+/* On the stage, status colours are the dark-theme ones whatever the page theme. */
+.map-preview [data-tone="ok"] { --tone: var(--lp-stage-ok); --tone-ink: var(--lp-stage-ok); }
+.map-preview [data-tone="warn"] { --tone: var(--lp-stage-warn); --tone-ink: var(--lp-stage-warn); }
+.map-preview [data-tone="bad"] { --tone: var(--lp-stage-bad); --tone-ink: var(--lp-stage-bad); }
+.map-preview [data-tone="neutral"] { --tone: var(--lp-stage-ink-2); --tone-ink: var(--lp-stage-ink-2); }
+.map-preview [data-tone="accent"] { --tone: var(--lp-stage-accent); --tone-ink: var(--lp-stage-accent); }
 
-/* Too narrow for the picture: the same components, layer by layer, joined by small arrows. */
-.map-rows { display: none; }
-.map-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 10px 0 9px;
-  border: 1px solid var(--lp-line-strong);
-  border-radius: 999px;
-  background: var(--lp-surface);
-  color: var(--lp-ink);
-  font-size: 12px;
-  line-height: 16px;
-  font-weight: 560;
-  white-space: nowrap;
-}
-.map-chip[data-attention="true"] { border-color: color-mix(in oklab, var(--tone) 62%, var(--lp-line)); background: color-mix(in oklab, var(--tone-soft) 82%, var(--lp-surface)); color: var(--tone-ink); }
-@container (max-width: 460px) {
-  .map-preview svg.map { display: none; }
-  .map-rows { display: grid; justify-items: center; padding: 12px 12px 60px; }
-  .map-rows li { position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
-  .map-rows li + li { margin-top: 22px; }
-  .map-rows li + li::before { content: ""; position: absolute; top: -18px; left: 50%; width: 1.3px; height: 9px; background: var(--lp-edge); }
-  .map-rows li + li::after { content: ""; position: absolute; top: -9px; left: calc(50% - 4px); border: 4px solid transparent; border-top: 6px solid var(--lp-edge); border-bottom: 0; }
-}
+.map-stage { position: relative; display: flex; flex: 1; flex-direction: column; padding-bottom: 58px; }
+.map-stage[data-inview="false"] *,
+.map-stage[data-inview="false"] *::before,
+.map-stage[data-inview="false"] *::after { animation-play-state: paused !important; }
+.map-caption { display: block; padding: 14px 16px 0; color: var(--lp-stage-ink-2); font-family: var(--app-mono); font-size: 11px; line-height: 16px; letter-spacing: 0.08em; text-transform: uppercase; }
 
-.map-cta {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: var(--lp-inverse);
-  color: var(--lp-on-inverse);
-  font-size: 13px;
-  font-weight: 550;
-}
+/* The picture. */
+.map-preview svg.map { display: block; width: 100%; height: auto; max-height: 340px; margin: auto 0; padding: 10px 12px 0; overflow: visible; }
+.map-preview .map-node-body { animation: map-rise 640ms var(--lp-ease-out) both; animation-delay: calc(var(--d, 0) * 160ms + 120ms); }
+.map-preview .map-pill { fill: var(--lp-stage-glass); stroke: var(--lp-stage-line); stroke-width: 1; }
+.map-preview .map-node[data-problem] .map-pill { fill: color-mix(in oklab, var(--tone) 16%, var(--lp-stage)); stroke: color-mix(in oklab, var(--tone) 70%, transparent); }
+.map-preview .map-name { fill: var(--lp-stage-ink); font-family: var(--app-sans); font-weight: 560; }
+.map-preview .map-node[data-problem] .map-name { fill: var(--tone); font-weight: 620; }
+.map-preview .map-edge { fill: none; stroke: var(--lp-stage-edge); stroke-width: 1.3; stroke-linecap: round; stroke-dasharray: var(--len); stroke-dashoffset: 0; animation: map-draw 800ms var(--lp-ease-out) both; animation-delay: calc(var(--d, 0) * 160ms + 320ms); }
+.map-preview .map-arrow { fill: var(--lp-stage-edge); animation: map-fade 300ms var(--lp-ease-out) both; animation-delay: calc(var(--d, 0) * 160ms + 950ms); }
+
+/* Flow: a soft light along every line. The glow is a wider, fainter copy of the same dash. */
+.map-preview :is(.map-flow, .map-flow-glow) { fill: none; stroke: var(--lp-stage-accent); stroke-linecap: round; stroke-dasharray: 12 var(--len); stroke-dashoffset: 12px; opacity: 0; animation: map-flow 6s linear infinite; animation-delay: calc(var(--d, 0) * 450ms + 2.4s); }
+.map-preview .map-flow { stroke-width: 2; --peak: 0.95; }
+.map-preview .map-flow-glow { stroke-width: 7; --peak: 0.22; }
+
+/* Pulse: problems breathe. */
+.map-preview .map-halo { fill: color-mix(in oklab, var(--tone) 12%, transparent); stroke: color-mix(in oklab, var(--tone) 45%, transparent); stroke-width: 1; opacity: 0.6; transform-box: fill-box; transform-origin: center; animation: map-pulse 2.8s ease-in-out 1.4s infinite; }
+
+/* Ripple: red runs back along the lines, and what it reaches is potentially affected for a moment. */
+.map-preview :is(.map-hot, .map-hot-glow) { fill: none; stroke: var(--lp-stage-bad); stroke-linecap: round; stroke-dasharray: var(--len); stroke-dashoffset: var(--len); opacity: 0; animation: map-hot 9s ease-in-out infinite; animation-delay: calc(var(--h, 1) * 700ms + 2.4s); }
+.map-preview .map-hot { stroke-width: 2; --peak: 1; }
+.map-preview .map-hot-glow { stroke-width: 7; --peak: 0.25; }
+.map-preview .map-aff { opacity: 0; animation: map-aff 9s var(--lp-ease-out) infinite; animation-delay: calc(var(--h, 1) * 700ms + 3s); }
+.map-preview .map-aff-ring { fill: color-mix(in oklab, var(--lp-stage-bad) 10%, transparent); stroke: var(--lp-stage-bad); stroke-width: 1.3; stroke-dasharray: 4 3; }
+.map-preview [data-affected] .map-glyph-now { animation: map-aff-out 9s var(--lp-ease-out) infinite; animation-delay: calc(var(--h, 1) * 700ms + 3s); }
+
+/* The line under the map: what the picture shows, in words. During the ripple it counts what could be reached, in step
+   with the furthest component the ripple lights (--h on .map-say is the ripple's reach). */
+.map-say { position: absolute; left: 14px; bottom: 14px; display: grid; justify-items: start; margin: 0; }
+.map-say > span { grid-area: 1 / 1; display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border: 1px solid var(--lp-stage-line); border-radius: 999px; background: color-mix(in oklab, var(--lp-stage) 55%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); color: var(--lp-stage-ink); font-size: 12.5px; line-height: 16px; font-weight: 560; white-space: nowrap; }
+.map-say .map-say-ripple { opacity: 0; border-color: color-mix(in oklab, var(--lp-stage-bad) 45%, transparent); color: var(--lp-stage-bad); animation: map-aff 9s var(--lp-ease-out) infinite; animation-delay: calc(var(--h, 1) * 700ms + 3s); }
+.map-say[data-ripple] .map-say-now { animation: map-aff-out 9s var(--lp-ease-out) infinite; animation-delay: calc(var(--h, 1) * 700ms + 3s); }
+
+.map-cta { position: absolute; right: 14px; bottom: 14px; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px; background: var(--lp-stage-ink); color: var(--lp-stage); font-size: 13px; font-weight: 600; }
 .map-cta svg { transition: transform var(--lp-dur-ui) var(--lp-ease-out); }
 @media (hover: hover) and (pointer: fine) {
-  .map-preview:hover { border-color: var(--lp-line-strong); }
+  .map-preview:hover { border-color: color-mix(in oklab, var(--lp-stage-accent) 45%, var(--lp-stage)); box-shadow: 0 16px 40px -20px color-mix(in oklab, var(--lp-stage-accent) 55%, transparent); }
   .map-preview:hover .map-cta svg { transform: translateX(3px); }
 }
-.map-empty { display: grid; place-items: center; height: 100%; min-height: 260px; padding: 24px; color: var(--lp-ink-3); font-size: 14px; text-align: center; }
+
+/* Too narrow for the picture: the same components layer by layer, joined by small arrows. */
+.map-rows { display: none; }
+.map-chip { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px 0 9px; border: 1px solid var(--lp-stage-line); border-radius: 999px; background: var(--lp-stage-glass); color: var(--lp-stage-ink); font-size: 12px; line-height: 16px; font-weight: 560; white-space: nowrap; }
+.map-chip[data-problem] { border-color: color-mix(in oklab, var(--tone) 70%, transparent); background: color-mix(in oklab, var(--tone) 16%, var(--lp-stage)); color: var(--tone); animation: map-chip-pulse 2.8s ease-in-out 1.4s infinite; }
+.map-chip-glyph { display: inline-grid; flex: none; }
+.map-chip-glyph > span { grid-area: 1 / 1; display: grid; place-items: center; }
+.map-chip[data-affected]::after { content: ""; position: absolute; inset: -3px; border: 1.3px dashed var(--lp-stage-bad); border-radius: 999px; opacity: 0; animation: map-aff 9s var(--lp-ease-out) infinite; animation-delay: calc(var(--h, 1) * 700ms + 3s); }
+@container (max-width: 460px) {
+  .map-preview svg.map { display: none; }
+  .map-say { position: static; order: 1; margin: 10px 14px 0; }
+  .map-rows { order: 2; display: grid; justify-items: center; margin: auto 0; padding: 18px 12px 6px; }
+  .map-rows li { position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; animation: map-rise 600ms var(--lp-ease-out) both; animation-delay: calc(var(--d, 0) * 160ms + 120ms); }
+  .map-rows li + li { margin-top: 24px; }
+  .map-rows li + li::before { content: ""; position: absolute; top: -20px; left: calc(50% - 0.65px); width: 1.3px; height: 10px; background: var(--lp-stage-edge); }
+  .map-rows li + li::after { content: ""; position: absolute; top: -10px; left: calc(50% - 4px); border: 4px solid transparent; border-top: 6px solid var(--lp-stage-edge); border-bottom: 0; }
+  .map-row-flow { position: absolute; top: -21px; left: calc(50% - 2px); width: 4px; height: 4px; border-radius: 50%; background: var(--lp-stage-accent); box-shadow: 0 0 6px var(--lp-stage-accent); opacity: 0; animation: map-dot 6s linear infinite; animation-delay: calc(var(--d, 0) * 450ms + 2.4s); }
+}
+
+@keyframes map-rise { from { opacity: 0; transform: translateY(8px); } }
+@keyframes map-fade { from { opacity: 0; } }
+@keyframes map-draw { from { stroke-dashoffset: var(--len); } }
+@keyframes map-flow {
+  0% { stroke-dashoffset: 12px; opacity: 0; }
+  4%, 30% { opacity: var(--peak); }
+  34%, 100% { stroke-dashoffset: calc(var(--len) * -1px); opacity: 0; }
+}
+@keyframes map-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+@keyframes map-hot {
+  0% { stroke-dashoffset: var(--len); opacity: var(--peak); }
+  8% { stroke-dashoffset: 0; }
+  52% { stroke-dashoffset: 0; opacity: var(--peak); }
+  60%, 100% { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes map-aff {
+  0% { opacity: 0; }
+  4%, 46% { opacity: 1; }
+  54%, 100% { opacity: 0; }
+}
+@keyframes map-aff-out {
+  0% { opacity: 1; }
+  4%, 46% { opacity: 0; }
+  54%, 100% { opacity: 1; }
+}
+@keyframes map-chip-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 0 5px color-mix(in oklab, var(--tone) 22%, transparent); }
+}
+@keyframes map-dot {
+  0% { opacity: 0; transform: translateY(0); }
+  4%, 30% { opacity: 1; }
+  34%, 100% { opacity: 0; transform: translateY(11px); }
+}
+
+.map-empty { display: grid; place-items: center; flex: 1; min-height: 260px; padding: 24px; color: var(--lp-stage-ink-2); font-size: 14px; text-align: center; }
 
 .callout { display: grid; gap: 14px; margin-bottom: 16px; }
 

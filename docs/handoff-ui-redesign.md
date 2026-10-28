@@ -17,7 +17,7 @@ Sema asked for three things, all in the Hydra design language of the landing pag
 | Tokens, fonts, app shell (header with theme switch, avatar, sign out) | Done |
 | Project frame: breadcrumb and tab bar in `app/projects/[projectId]/layout.tsx` (stays put between tabs) | Done |
 | `/projects`, `/projects/new`, `/projects/import` | Done |
-| Overview (health summary, map preview, stats, feeds) | Done |
+| Overview (health summary, live map on a dark stage, stats, feeds) | Done |
 | Topology (new layout, curved edges with arrows, legend, detail panel, impact view) | Done |
 | Boards (board, backlog, drawer), components, environments, compare, events, deployments, settings, integrations | Done |
 | Keycloak login theme | Done: `infra/keycloak/themes/hydra`, see `docs/authentication.md` ("Login theme") |
@@ -40,11 +40,11 @@ Sema asked for three things, all in the Hydra design language of the landing pag
 - `src/lib/graph.ts`: new `layoutTopology` (every arrow points down, cycles are safe, children sit under their parents), `mapTopology` now draws curved edges with arrowheads, encodes the dependency source as solid / dashed / dotted lines, highlights the impact path, and gives nodes an initial size so the minimap works (it was always empty before). `miniMap` makes the overview's map preview.
 - `src/components/TopologyWorkspace.tsx`: rebuilt UI; same data flow and SSE handling. New: clicking the empty canvas clears the selection, a close button on the detail panel, related components are clickable, and `?componentId=` preselects a component (used by the overview's attention list).
 - `src/components/landing/Icon.tsx`: more Lucide icons. `Brand.tsx`: optional `href`.
-- Later: `src/components/app/HealthBar.tsx` (`HealthBar`, `HealthLegend`, shared by the overview and the environment cards); environment cards with recorded health; `.stack-table` (tables become cards on a phone, cells carry `data-label`); `ProjectNav` scrolls the current tab into view; `infra/keycloak/themes/hydra` (Keycloak login theme).
+- Later: `src/components/app/HealthBar.tsx` (`HealthBar`, `HealthLegend`, shared by the overview and the environment cards); environment cards with recorded health; `.stack-table` (tables become cards on a phone, cells carry `data-label`); `ProjectNav` scrolls the current tab into view; `infra/keycloak/themes/hydra` (Keycloak login theme); the overview's live map on a dark stage with calm motion (`MapPreview`, `miniMap` and `failureHops` in `lib/graph.ts`, the `--lp-stage-*` tokens).
 
 ## How it was checked
 
-- A browser harness (esbuild + Playwright, React Flow 12.11.6 and zustand 4.5.7 built from their GitHub sources) rendered every page with sample data shaped like `DemoSeed.cs`, in Light and Dark at 1440 and 390 px, plus 768 and 375 px for the main pages, and the empty, viewer and unhealthy variants. No console errors and no horizontal scroll.
+- A browser harness (esbuild + Playwright, React Flow 12.11.6 and zustand 4.5.7 built from their GitHub sources) rendered every page with sample data shaped like `DemoSeed.cs`, in Light and Dark at 1440 and 390 px, plus 768 and 375 px for the main pages, and the empty, viewer and unhealthy variants. No console errors and no horizontal scroll. The overview's live map was also checked frame by frame, with its animations stopped at set times through the Web Animations API, and with reduced motion.
 - Strict TypeScript (TypeScript 6.0, the closest version available offline; the repository uses 5.9) over all of `frontend/web/src` with the real React types from DefinitelyTyped and stand-ins for Next.js and Auth.js: no errors and no unused code in Hydra files.
 - The Keycloak theme ran on a real Keycloak 26.6.3 with the realm imported from the same folder layout as `compose.yaml`: sign-in, wrong password, password update, authenticator setup, forgot password, sign-out and error pages, Light, Dark and Auto, 1440 and 390 px.
 - The harness lived in the sandbox and is not in the repository.
