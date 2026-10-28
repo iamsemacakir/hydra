@@ -764,6 +764,8 @@
 
 .health-bar { display: flex; gap: 3px; height: 10px; margin: 0 0 14px; overflow: hidden; border-radius: 999px; background: var(--lp-surface-2); }
 .health-bar span { min-width: 8px; background: var(--tone); }
+/* Unknown is "no report yet", not a problem: the quiet line colour keeps it from looking like one. */
+.health-bar span[data-tone="neutral"] { background: var(--lp-line-strong); }
 .health-bar span:first-child { border-radius: 999px 0 0 999px; }
 .health-bar span:last-child { border-radius: 0 999px 999px 0; }
 .health-bar span:only-child { border-radius: 999px; }
@@ -1147,7 +1149,19 @@
 .env-card h2 { font-size: 18px; line-height: 24px; font-weight: 620; letter-spacing: -0.015em; }
 .env-card .panel-note { margin-top: 0; }
 .env-card .health-bar { margin: 4px 0 0; height: 8px; }
-.env-card .panel-link { margin-top: auto; }
+.env-card .panel-link { margin-top: auto; padding-top: 6px; }
+/* Recorded health of the environment: a sentence, the bar, the counts, what needs attention. */
+.env-health { display: grid; gap: 10px; margin-bottom: 4px; }
+.env-headline { color: var(--lp-ink-2); font-size: 14px; line-height: 22px; }
+.env-health .health-legend { gap: 4px 14px; }
+.env-skeleton { display: block; height: 8px; margin-top: 4px; border-radius: 999px; }
+.env-attention { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
+.env-attention a { display: inline-flex; border-radius: 999px; }
+.env-attention .status-pill { transition: box-shadow var(--lp-dur-press) var(--lp-ease-out); }
+@media (hover: hover) and (pointer: fine) {
+  .env-attention a:hover .status-pill { box-shadow: 0 0 0 1px color-mix(in oklab, var(--tone) 55%, transparent); }
+}
+
 .component-list { display: grid; }
 .component-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 14px 0; border-top: 1px solid var(--lp-line); }
 .component-row:first-child { border-top: 0; padding-top: 4px; }

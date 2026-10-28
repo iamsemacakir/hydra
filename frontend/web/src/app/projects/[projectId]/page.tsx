@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { HealthBar, HealthLegend } from "@/components/app/HealthBar";
 import { MapPreview } from "@/components/app/MapPreview";
 import { Notice } from "@/components/app/Notice";
 import { PageHead } from "@/components/app/PageHead";
@@ -11,7 +12,7 @@ import { SeverityPill, StatusGlyph, StatusPill, StatusText } from "@/components/
 import { Icon } from "@/components/landing/Icon";
 import { Deployment, Environment, getJson, OperationalEvent, postJson, Project, ProjectActivity, Topology, WorkItem } from "@/lib/api";
 import { formatWhen, formatWhenFull, plural } from "@/lib/format";
-import { countHealth, deploymentLook, HEALTH_ORDER, healthHeadline, healthLook, priorityTone, workStateLook } from "@/lib/status";
+import { countHealth, deploymentLook, healthHeadline, healthLook, priorityTone, workStateLook } from "@/lib/status";
 
 export default function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -88,10 +89,8 @@ export default function ProjectPage() {
                 </Link></li>; })}</ul>
               : <p className="all-clear" data-tone="ok"><StatusGlyph glyph="check" />Nothing needs attention right now.</p>}
             <div className="health-block">
-              <div className="health-bar" role="img" aria-label={HEALTH_ORDER.map(h => `${counts[h]} ${h.toLowerCase()}`).join(", ")}>
-                {HEALTH_ORDER.filter(h => counts[h] > 0).map(h => <span key={h} data-tone={healthLook(h).tone} style={{ flexGrow: counts[h] }} />)}
-              </div>
-              <ul className="health-legend">{HEALTH_ORDER.map(h => { const look = healthLook(h); return <li key={h} data-tone={look.tone}><StatusGlyph glyph={look.glyph} /><strong>{counts[h]}</strong>{look.label}</li>; })}</ul>
+              <HealthBar counts={counts} />
+              <HealthLegend counts={counts} />
             </div>
           </>}
         </div>
