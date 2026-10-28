@@ -34,7 +34,7 @@ Three choices: **Auto**, **Light**, **Dark**.
 - Light and Dark are stored in `localStorage` under `dp-landing-theme`. Auto is the absence of the key. Storage errors (private mode, blocked storage) are caught; the choice then lasts for the visit.
 - A small inline script in `<head>` (generated from `theme.ts`, so its rule cannot drift from `resolveTheme`) sets `data-landing-pref` and `data-landing-theme` on `<html>` before the first paint. There is no flash of the wrong theme, and the selected toggle segment is styled from the same attribute, so it is correct before hydration. `<html>` carries `suppressHydrationWarning` because those attributes exist only on the client's copy.
 - A visible theme change crossfades with the View Transitions API where it exists, and is instant for visitors who prefer reduced motion.
-- The theme applies to the landing page only. The signed-in application keeps the light palette from `docs/design-system.md`.
+- The theme applies to every page, not only the landing page: the same script and `ThemeToggle` serve `/signin` and the signed-in app (the switch sits in the app header), so a choice made on one page holds on the others. The Keycloak login theme follows the same rule with its own copy of the script; Keycloak runs on another origin, so it keeps its own stored choice. The tokens are described in [design-system.md](design-system.md).
 
 ## Motion
 
@@ -51,7 +51,7 @@ Three choices: **Auto**, **Light**, **Dark**.
 
 ## Typography
 
-Geist and Geist Mono load through `next/font/google`, so they are downloaded **at build time** and served from the app's own origin. The build machine therefore needs internet access. If that is a problem, download the font files into the repository and switch `fonts.ts` to `next/font/local`; nothing else changes. System font stacks are the fallback while the fonts load. Tokens and sizes are in `docs/design-system.md`.
+Geist and Geist Mono load through `next/font/google`, so they are downloaded **at build time** and served from the app's own origin. The build machine therefore needs internet access. If that is a problem, download the font files into the repository and switch `fonts.ts` to `next/font/local`; nothing else changes. System font stacks are the fallback while the fonts load. The Keycloak login theme cannot use `next/font`, so it bundles the two fonts as woff2 files (`infra/keycloak/themes/hydra/login/resources/fonts/`). Tokens and sizes are in `docs/design-system.md`.
 
 ## Product claims on the page
 
