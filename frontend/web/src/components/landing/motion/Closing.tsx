@@ -17,9 +17,9 @@ export function Closing() {
         <InView className={styles.closingPanel}>
           <div className={styles.closingCopy}>
             <h2 id="closing-title" className={styles.closingTitle}>
-              Map your first repository today.
+              See your whole system on one map.
             </h2>
-            <p className={styles.closingText}>Open the workspace, import a repository and watch its services fall into place.</p>
+            <p className={styles.closingText}>Open the workspace, import a repository and watch its services fall into place. Nothing in it is ever executed.</p>
             <div className={styles.closingActions}>
               <ButtonLink href={ROUTES.workspace} arrow className={styles.closingPrimary}>
                 Open workspace

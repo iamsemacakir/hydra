@@ -351,10 +351,12 @@
 .plate {
   position: absolute;
   inset: 0;
-  border: 1px solid var(--lp-line-strong);
+  border: 1px solid color-mix(in oklab, var(--lp-accent) 22%, var(--lp-line-strong));
   border-radius: 22px;
-  background: var(--lp-surface);
-  box-shadow: 0 1px 0 color-mix(in oklab, #fff 50%, transparent) inset;
+  background: linear-gradient(155deg, var(--lp-surface) 40%, color-mix(in oklab, var(--lp-surface) 90%, var(--lp-accent)));
+  box-shadow:
+    0 1px 0 color-mix(in oklab, #fff 50%, transparent) inset,
+    0 40px 60px -40px color-mix(in oklab, var(--lp-accent) 55%, transparent);
   transform-style: preserve-3d;
   backface-visibility: hidden;
 }
@@ -376,7 +378,7 @@
 }
 
 .plateMap {
-  background: color-mix(in oklab, var(--lp-surface) 90%, transparent);
+  background: linear-gradient(155deg, color-mix(in oklab, var(--lp-surface) 94%, transparent) 40%, color-mix(in oklab, var(--lp-surface) 88%, var(--lp-ok)));
   transform: translateZ(192px);
   animation: liftTop var(--loop) var(--lp-ease-in-out) infinite;
 }
@@ -508,7 +510,7 @@
   justify-items: center;
   gap: 4px;
   color: var(--lp-accent);
-  font-size: 15px;
+  font-size: 20px;
   font-weight: 650;
   letter-spacing: -0.01em;
 }
@@ -557,6 +559,18 @@
   100% {
     opacity: 0;
   }
+}
+
+.plateTag {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--lp-ok-soft);
+  color: var(--lp-ok);
+  font-size: 11px;
+  font-weight: 650;
 }
 
 .plateGraph {
@@ -1070,7 +1084,7 @@
 /* ------------------------------------------------------------------ */
 
 .story {
-  padding-block: 112px 64px;
+  padding-block: 112px 48px;
 }
 
 .storyGrid {
@@ -1091,13 +1105,17 @@
   display: grid;
   align-content: center;
   gap: 12px;
-  min-height: 66vh;
-  padding-block: 32px;
-  opacity: 0.32;
-  transition: opacity 500ms var(--lp-ease-out);
+  min-height: 58vh;
+  padding: 32px 0 32px 28px;
+  border-left: 2px solid var(--lp-line);
+  opacity: 0.36;
+  transition:
+    opacity 500ms var(--lp-ease-out),
+    border-color 500ms var(--lp-ease-out);
 }
 
 .storyStep[data-active="true"] {
+  border-left-color: var(--lp-accent);
   opacity: 1;
 }
 
@@ -1132,9 +1150,9 @@
 
 .storySticky {
   position: sticky;
-  top: max(96px, calc(50vh - 250px));
+  top: max(96px, calc(50vh - 236px));
   align-self: start;
-  margin-top: 16vh;
+  margin-top: 10vh;
 }
 
 .window {
@@ -1201,12 +1219,14 @@
 
 .windowBody {
   position: relative;
-  height: 420px;
+  height: 410px;
 }
 
 .scene {
   position: absolute;
   inset: 0;
+  display: grid;
+  align-content: center;
   padding: 24px;
   opacity: 0;
   visibility: hidden;
@@ -1243,7 +1263,8 @@
 
   .storyStep {
     min-height: 0;
-    padding-block: 28px;
+    padding: 28px 0;
+    border-left: 0;
     opacity: 1;
   }
 
@@ -1495,7 +1516,7 @@
   padding: 7px 16px;
   border-radius: 10px;
   background: var(--lp-accent);
-  color: #fff;
+  color: var(--lp-on-inverse);
   font-size: 13px;
   line-height: 18px;
   font-weight: 600;
@@ -1586,7 +1607,7 @@
 
   100% {
     background: var(--lp-accent);
-    color: #fff;
+    color: var(--lp-on-inverse);
     transform: scale(1);
   }
 }
@@ -3507,7 +3528,7 @@
   padding: 16px 18px 12px;
   border-radius: 22px;
   background: var(--lp-accent);
-  color: #fff;
+  color: var(--lp-on-inverse);
   font-size: 14px;
   font-weight: 650;
   box-shadow: 0 0 60px 10px color-mix(in oklab, var(--lp-accent) 55%, transparent);
@@ -3541,44 +3562,6 @@
   }
 }
 
-
-/* Status glyphs inside these sections use the accent status colours. */
-.heroStatus svg[data-kind="healthy"] circle,
-.mapCaption svg[data-kind="healthy"] circle,
-.incidentCaption svg[data-kind="healthy"] circle,
-.rippleCore svg[data-kind="healthy"] circle,
-.impactRows svg[data-kind="healthy"] circle,
-.flipStatusFace svg[data-kind="healthy"] circle,
-.feed svg[data-kind="healthy"] circle,
-.boardMover svg[data-kind="healthy"] circle,
-.orbitFace svg[data-kind="healthy"] circle {
-  fill: var(--lp-ok);
-}
-
-.heroStatus svg[data-kind="degraded"] path,
-.mapCaption svg[data-kind="degraded"] path,
-.incidentCaption svg[data-kind="degraded"] path,
-.rippleCore svg[data-kind="degraded"] path,
-.impactRows svg[data-kind="degraded"] path,
-.flipStatusFace svg[data-kind="degraded"] path,
-.feed svg[data-kind="degraded"] path,
-.boardMover svg[data-kind="degraded"] path,
-.orbitFace svg[data-kind="degraded"] path {
-  fill: var(--lp-bad);
-  stroke: var(--lp-bad);
-}
-
-.heroStatus svg[data-kind="affected"] path,
-.mapCaption svg[data-kind="affected"] path,
-.incidentCaption svg[data-kind="affected"] path,
-.rippleCore svg[data-kind="affected"] path,
-.impactRows svg[data-kind="affected"] path,
-.flipStatusFace svg[data-kind="affected"] path,
-.feed svg[data-kind="affected"] path,
-.boardMover svg[data-kind="affected"] path,
-.orbitFace svg[data-kind="affected"] path {
-  stroke: var(--lp-bad);
-}
 
 /* ------------------------------------------------------------------ */
 /* Reduced motion: everything rests on its meaningful final state      */

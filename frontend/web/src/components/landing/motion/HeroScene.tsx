@@ -4,7 +4,7 @@ import { useEffect, useRef, type PointerEvent } from "react";
 import { cssVars } from "../cssVars";
 import { INCIDENT_SERVICE, SERVICE_IDS } from "../graph";
 import { StateGlyph } from "../StateGlyph";
-import { AFFECTED, APPEAR_ORDER, GEOMETRY } from "./geometry";
+import { AFFECTED, APPEAR_ORDER, DEPENDENCY_COUNT, GEOMETRY } from "./geometry";
 import styles from "./motion.module.css";
 
 /** Code lines on the file plate, as [indent, width] in characters. Drawn as bars, not text, so they stay sharp at any angle. */
@@ -82,7 +82,7 @@ export function HeroScene() {
           <div className={`${styles.plate} ${styles.plateHydra}`}>
             <span className={styles.hydraSweep} />
             <div className={styles.hydraMark}>
-              <svg viewBox="0 0 28 28" width="34" height="34" fill="none">
+              <svg viewBox="0 0 28 28" width="44" height="44" fill="none">
                 <path d="M14 20.5V15M14 15 8.6 9.6M14 15l5.4-5.4M14 15V8.6" strokeWidth="1.7" strokeLinecap="round" />
                 <circle cx="14" cy="20.5" r="2.1" />
                 <circle cx="8.6" cy="8.8" r="1.9" />
@@ -94,6 +94,7 @@ export function HeroScene() {
           </div>
 
           <div className={`${styles.plate} ${styles.plateMap}`}>
+            <span className={styles.plateTag}>Live map</span>
             <svg viewBox={`0 0 ${MAP.width} ${MAP.height}`} className={styles.plateGraph}>
               {MAP.edges.map((edge) => (
                 <path
@@ -131,11 +132,11 @@ export function HeroScene() {
       <div className={styles.heroStatus} aria-hidden="true">
         <p data-step="read">
           <span className={styles.statusDot} />
-          Reading compose.yaml
+          Reading compose.yaml as text
         </p>
         <p data-step="save">
           <StateGlyph kind="healthy" />
-          {SERVICE_IDS.length} services and their dependencies saved
+          {SERVICE_IDS.length} services and {DEPENDENCY_COUNT} dependencies saved
         </p>
         <p data-step="fail">
           <StateGlyph kind="degraded" />
@@ -143,7 +144,7 @@ export function HeroScene() {
         </p>
         <p data-step="ok">
           <StateGlyph kind="healthy" />
-          Recovered. Every service is healthy.
+          Recovered. Every service is OK.
         </p>
       </div>
       <p className={styles.sampleNote}>Sample system</p>

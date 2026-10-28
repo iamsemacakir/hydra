@@ -35,7 +35,7 @@ export function Steps() {
   return (
     <section id={SECTION_IDS.getStarted} className={lp.section} aria-labelledby="get-started-title">
       <div className={lp.wrap}>
-        <SectionHeader id="get-started-title" eyebrow="Get started" title="From sign-in to topology in three steps." />
+        <SectionHeader id="get-started-title" eyebrow="Get started" title="Three steps to your first map." />
         <InView once className={styles.track}>
           <span className={styles.trackLine} aria-hidden="true">
             <i />

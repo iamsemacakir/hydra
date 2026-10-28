@@ -100,13 +100,13 @@ export function Bento() {
           id="capabilities-title"
           eyebrow="Capabilities"
           title="One model for the whole system."
-          lede="Components, dependencies, deployments, health and events sit in one place, so nobody has to piece them together during an incident."
+          lede="Services, dependencies, deployments, health and events live in one place, so nobody has to piece them together in the middle of an incident."
         />
         <div className={styles.bentoGrid}>
           <Tile
             className={styles.span2}
             title="Live topology"
-            text="Every service and its dependencies on one map. Filter by type, health or where a dependency came from."
+            text="Every service and its dependencies on one live map. Filter by type, by health or by where a dependency came from."
           >
             <div className={styles.flowBox}>
               <FlowMap kind="wide" />
@@ -114,7 +114,7 @@ export function Bento() {
             </div>
           </Tile>
 
-          <Tile delay={80} title="Impact analysis" text="Pick a service and see which others may be affected, directly or through the chain.">
+          <Tile delay={80} title="Impact analysis" text="Pick a service and see which others may be affected, directly or further down the chain.">
             <div className={styles.ripple}>
               <span className={styles.rippleRings}>
                 <i />

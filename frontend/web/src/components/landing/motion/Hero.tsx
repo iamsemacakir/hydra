@@ -42,8 +42,8 @@ export function Hero() {
             ))}
           </h1>
           <p className={styles.heroLede}>
-            Import a repository. Get one live map of its services, dependencies and health, and see what a failing service could
-            reach before your users do.
+            Import a repository and get one live map of its services, what they depend on and how healthy they are. When one
+            fails, see which others it could reach.
           </p>
           <div className={styles.heroActions}>
             <ButtonLink href={ROUTES.workspace} arrow>
@@ -56,7 +56,7 @@ export function Hero() {
           <div className={styles.heroFoot}>
             <p className={styles.heroTrust}>
               <Icon name="shield-check" size={16} />
-              Your code is never executed.
+              Read-only. Your code is never executed.
             </p>
             <MotionToggle />
           </div>

@@ -425,8 +425,8 @@ html[data-landing-pref="dark"] .themeOption[data-value="dark"] {
 
 .sectionHeader {
   display: grid;
-  gap: 12px;
-  max-width: 640px;
+  gap: 14px;
+  max-width: 720px;
   margin-bottom: 48px;
 }
 
@@ -435,17 +435,17 @@ html[data-landing-pref="dark"] .themeOption[data-value="dark"] {
   font-size: 12px;
   line-height: 16px;
   font-weight: 500;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--lp-ink-3);
+  color: var(--lp-accent);
 }
 
 .sectionTitle {
   margin: 0;
-  font-size: 36px;
-  line-height: 42px;
-  font-weight: 600;
-  letter-spacing: -0.025em;
+  font-size: clamp(34px, 4vw, 52px);
+  line-height: 1.06;
+  font-weight: 650;
+  letter-spacing: -0.035em;
   text-wrap: balance;
 }
 
@@ -466,8 +466,8 @@ html[data-landing-pref="dark"] .themeOption[data-value="dark"] {
   }
 
   .sectionTitle {
-    font-size: 28px;
-    line-height: 34px;
+    font-size: 30px;
+    line-height: 1.1;
   }
 
   .sectionLede {
@@ -605,9 +605,9 @@ html[data-landing-pref="dark"] .themeOption[data-value="dark"] {
 
 .nodeLabel {
   fill: var(--lp-ink);
-  font-family: var(--lp-mono);
-  font-size: 12px;
-  font-weight: 500;
+  font-family: var(--lp-sans);
+  font-size: 13px;
+  font-weight: 550;
   transition: fill 240ms var(--lp-ease-out);
 }
 
@@ -623,7 +623,7 @@ html[data-landing-pref="dark"] .themeOption[data-value="dark"] {
 }
 
 .glyphHealthy {
-  fill: var(--lp-ink);
+  fill: var(--lp-ok);
 }
 
 .glyphDegraded {
@@ -656,13 +656,13 @@ html[data-landing-pref="dark"] .themeOption[data-value="dark"] {
 }
 
 .nodeSelected {
-  stroke: var(--lp-ink);
-  stroke-width: 1.5;
+  stroke: var(--lp-accent);
+  stroke-width: 2;
   transition: opacity 160ms linear;
 }
 
 .nodeFocus {
-  stroke: var(--lp-ink);
+  stroke: var(--lp-accent);
   stroke-width: 2;
 }
 
@@ -739,7 +739,7 @@ html[data-landing-pref="dark"] .themeOption[data-value="dark"] {
 
 @media (hover: hover) and (pointer: fine) {
   .node[role="button"]:hover .nodeBox {
-    stroke: var(--lp-ink);
+    stroke: var(--lp-accent);
   }
 }
 
@@ -808,7 +808,7 @@ html[data-landing-pref="dark"] .themeOption[data-value="dark"] {
 }
 
 .stateGlyph[data-kind="healthy"] circle {
-  fill: var(--lp-ink);
+  fill: var(--lp-ok);
 }
 
 .stateGlyph[data-kind="degraded"] path {
@@ -859,7 +859,9 @@ html[data-landing-pref="dark"] .themeOption[data-value="dark"] {
   min-width: 0;
   border: 1px solid var(--lp-line);
   border-radius: var(--lp-radius-xl);
-  background: var(--lp-bg);
+  background:
+    radial-gradient(color-mix(in oklab, var(--lp-ink) 9%, transparent) 1px, transparent 1.3px) 0 0 / 16px 16px,
+    var(--lp-bg);
   overflow: hidden;
 }
 
@@ -871,6 +873,7 @@ html[data-landing-pref="dark"] .themeOption[data-value="dark"] {
   min-height: 56px;
   padding: 8px 16px 8px 20px;
   border-bottom: 1px solid var(--lp-line);
+  background: var(--lp-surface);
 }
 
 .panelHint {
@@ -930,7 +933,27 @@ html[data-landing-pref="dark"] .themeOption[data-value="dark"] {
   padding: 32px 20px;
 }
 
+/* Two renderings of the same graph. The one that fits the panel is shown. */
+.graphWide {
+  display: none;
+}
+
+.graphTree {
+  display: block;
+}
+
+@container (min-width: 600px) {
+  .graphWide {
+    display: block;
+  }
+
+  .graphTree {
+    display: none;
+  }
+}
+
 .panelFooter {
+  background: var(--lp-surface);
   display: flex;
   flex-wrap: wrap;
   align-items: center;

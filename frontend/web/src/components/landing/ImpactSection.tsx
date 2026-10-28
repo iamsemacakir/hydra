@@ -16,7 +16,7 @@ export function ImpactSection() {
           id="explorer-title"
           eyebrow="Impact explorer"
           title="Click a service. See what it could reach."
-          lede="This is the sample system from the top of the page. An arrow from A to B means A depends on B, so a failure travels against the arrows."
+          lede="The same sample system, now in your hands. An arrow from A to B means A depends on B, so a failure travels against the arrows."
         />
         <Reveal>
           <ImpactExplorer />

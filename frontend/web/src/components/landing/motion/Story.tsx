@@ -13,30 +13,30 @@ type Step = { id: string; label: string; title: string; text: string; scene: Rea
 const STEPS: readonly Step[] = [
   {
     id: "write",
-    label: "Write",
-    title: "It starts with a file you already have.",
-    text: "Services and their depends_on lines already live in compose.yaml. Hydra reads the file as text. Nothing in your repository is executed.",
+    label: "File",
+    title: "Start with the file you already have.",
+    text: "Your services and their depends_on lines are already in compose.yaml. Hydra reads it as plain text and never runs anything.",
     scene: <EditorScene />,
   },
   {
     id: "save",
     label: "Save",
-    title: "Review what was found, then save it.",
-    text: "The scan lists every service and dependency it found. Apply the list and it is saved to your project, one row at a time.",
+    title: "Review what it found. Then save it.",
+    text: "The scan lists every service and dependency it found. Check the list, apply it, and it is saved to your project.",
     scene: <SaveScene />,
   },
   {
     id: "map",
     label: "Map",
-    title: "Each service becomes a point on one map.",
-    text: "Lines show what depends on what. Every service carries its own status, so a glance tells you everything is OK.",
+    title: "Every service becomes a point on the map.",
+    text: "Lines show what depends on what, and each point carries its own status. One glance tells you everything is OK.",
     scene: <MapScene />,
   },
   {
     id: "incident",
-    label: "Fail",
+    label: "Incident",
     title: "When one fails, the red follows the lines.",
-    text: `When ${INCIDENT_SERVICE} degrades, the services that depend on it are marked potentially affected, hop by hop. When it recovers, the map turns back to OK.`,
+    text: `If ${INCIDENT_SERVICE} degrades, everything that depends on it is marked potentially affected, one hop at a time. When it recovers, the map turns back to OK.`,
     scene: <IncidentScene />,
   },
 ];
@@ -83,8 +83,8 @@ export function Story() {
         <SectionHeader
           id="story-title"
           eyebrow="How it works"
-          title="From a file to a live map, in four moves."
-          lede="Scroll through the steps. The window plays each one with a sample system."
+          title="From one file to a live map."
+          lede="Four steps, played in the window as you scroll. The services are a sample system."
         />
         <div className={styles.storyGrid}>
           <ol className={styles.storySteps}>
