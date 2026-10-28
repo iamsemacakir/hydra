@@ -52,13 +52,13 @@ export default function ComparisonPage() {
       <label className="check-label"><input type="checkbox" checked={differencesOnly} onChange={event => setDifferencesOnly(event.target.checked)} />Differences only</label>
     </div>}
     {left === right && left && <Notice tone="info">Choose two different environments.</Notice>}
-    {comparison && <section className="panel table-panel fade-in">
+    {comparison && <section className="panel table-panel stack-table fade-in">
       <p className="muted">{differences === 0 ? "No recorded differences." : `${differences} of ${comparison.components.length} components differ.`} A record means a deployment or a runtime report exists; no record does not prove a component is missing. The {comparison.declaredDependencyCount} declared dependencies belong to the whole project, so both environments share them.</p>
       <table><thead><tr><th>Component</th><th>{comparison.leftEnvironmentName}</th><th>{comparison.rightEnvironmentName}</th><th>Result</th></tr></thead>
-        <tbody>{rows.map(component => <tr key={component.componentId}><td><strong>{component.name}</strong></td>
-          <td><Side hasData={component.leftHasData} version={component.leftVersion} health={component.leftHealth} /></td>
-          <td><Side hasData={component.rightHasData} version={component.rightVersion} health={component.rightHealth} /></td>
-          <td>{component.different ? <span className="chip" data-tone="warn">Different</span> : <span className="muted">Same</span>}</td></tr>)}</tbody></table>
+        <tbody>{rows.map(component => <tr key={component.componentId}><td data-primary><strong>{component.name}</strong></td>
+          <td data-label={comparison.leftEnvironmentName}><Side hasData={component.leftHasData} version={component.leftVersion} health={component.leftHealth} /></td>
+          <td data-label={comparison.rightEnvironmentName}><Side hasData={component.rightHasData} version={component.rightVersion} health={component.rightHealth} /></td>
+          <td data-label="Result">{component.different ? <span className="chip" data-tone="warn">Different</span> : <span className="muted">Same</span>}</td></tr>)}</tbody></table>
       {rows.length === 0 && <p className="muted">{differencesOnly ? "No recorded differences." : "No components yet."}</p>}
     </section>}
   </main>;

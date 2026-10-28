@@ -61,6 +61,8 @@ export default function ProjectPage() {
   const componentName = (id: string | null) => topology?.nodes.find(n => n.id === id)?.name ?? "System";
   const topologyHref = (componentId?: string) => `/projects/${projectId}/topology?environmentId=${environmentId}${componentId ? `&componentId=${componentId}` : ""}`;
   const total = topology?.nodes.length ?? 0;
+  // A project without environments has no health, events or deployments yet: show only what applies.
+  const hasEnvironments = !project || environments.length > 0;
 
   return <main id="main" className="ws-page">
     <PageHead eyebrow="Overview" title={project?.name ?? "Loading…"} lede={project ? (project.description || "No description yet. Add one in Settings.") : undefined}
@@ -96,15 +98,15 @@ export default function ProjectPage() {
         <MapPreview topology={topology} href={topologyHref()} environmentName={environment?.name ?? ""} />
       </section>}
 
-      <div className="stats rise" style={{ margin: 0 }}>
+      {hasEnvironments && <div className="stats rise" style={{ margin: 0 }}>
         <Stat icon="square-kanban" value={openWork.length} label="Open work items" />
         <Stat icon="bug" value={activeBugs} label="Active bugs" tone={activeBugs > 0 ? "bad" : undefined} />
         <Stat icon="box" value={topology?.nodes.length ?? "—"} label="Components" />
         <Stat icon="git-branch" value={topology?.edges.length ?? "—"} label="Dependencies" />
-        <Stat icon="activity" value={topology ? attentionNodes.length : "—"} label="Need attention" tone={!topology ? undefined : attentionNodes.length > 0 ? "warn" : "ok"} />
-      </div>
+        <Stat icon="activity" value={topology ? attentionNodes.length : "—"} label="Need attention" tone={!topology ? undefined : counts.Unhealthy > 0 ? "bad" : attentionNodes.length > 0 ? "warn" : "ok"} />
+      </div>}
 
-      <div className="two-col">
+      {hasEnvironments && <div className="two-col">
         <section className="panel"><div className="panel-head"><h2>Recent events</h2><Link className="panel-link" href={`/projects/${projectId}/events`}>All events<Icon name="arrow-right" size={14} /></Link></div>
           {events.length > 0 ? <ol className="feed">{events.map(e => <li className="feed-item" key={e.id}><SeverityPill severity={e.severity} /><div><strong>{e.title}</strong><small>{componentName(e.componentId)} · <time dateTime={e.occurredAt} title={formatWhenFull(e.occurredAt)}>{formatWhen(e.occurredAt)}</time></small></div></li>)}</ol>
             : <p className="empty-line">No events in this environment yet.</p>}
@@ -113,7 +115,7 @@ export default function ProjectPage() {
           {deployments.length > 0 ? <ol className="feed">{deployments.map(d => <li className="feed-item" key={d.id}><span className="version">{d.version}</span><div><strong>{componentName(d.componentId)}</strong><small><StatusText look={deploymentLook(d.status)} /> · <time dateTime={d.startedAt} title={formatWhenFull(d.startedAt)}>{formatWhen(d.startedAt)}</time></small></div></li>)}</ol>
             : <p className="empty-line">No deployments recorded in this environment yet.</p>}
         </section>
-      </div>
+      </div>}
 
       <div className="two-col">
         <section className="panel"><div className="panel-head"><h2>Open work</h2><Link className="panel-link" href={`/projects/${projectId}/boards`}>Open board<Icon name="arrow-right" size={14} /></Link></div>

@@ -8,6 +8,7 @@ import { PageHead } from "@/components/app/PageHead";
 import { StatusPill } from "@/components/app/Status";
 import { Icon } from "@/components/landing/Icon";
 import { DiscoveryPreview, getJson, ImportStart, postJson, RepositoryScan } from "@/lib/api";
+import { plural } from "@/lib/format";
 import type { StatusLook } from "@/lib/status";
 
 function scanLook(status: RepositoryScan["status"] | undefined): StatusLook {
@@ -92,10 +93,11 @@ export default function ImportProjectPage() {
         <div className="form-actions"><Link className="button" href="/projects">Cancel</Link><button className="button primary" disabled={busy}><Icon name="scan-search" />{busy ? "Starting…" : "Create and scan"}</button></div>
       </form>}
       {imported && <section className="panel fade-in">{step(3, "Scan the repository")}
-        <p style={{ marginTop: 14 }}><StatusPill look={scanLook(scan?.status)} /> <span className="muted">{source === "demo" ? "Bundled Commerce System" : repositoryUrl}</span></p>
+        <p className="scan-status"><StatusPill look={scanLook(scan?.status)} /><span className="muted">{source === "demo" ? "Bundled Commerce System" : repositoryUrl}</span></p>
         <p className="panel-note">{scan?.status === "Running" ? "Reading safe configuration files and parsing Docker Compose." :
           scan?.status === "Failed" ? scan.errorMessage : scan?.completedAt ?
-            `${scan.filesScanned} files scanned · ${scan.componentsDiscovered} components · ${scan.dependenciesDiscovered} dependencies · ${scan.warningsCount} warnings` : "Waiting for the background worker."}</p>
+            [plural(scan.filesScanned, "file") + " scanned", plural(scan.componentsDiscovered, "component"),
+              plural(scan.dependenciesDiscovered, "dependency", "dependencies"), plural(scan.warningsCount, "warning")].join(" · ") : "Waiting for the background worker."}</p>
         <Link className="panel-link" href={`/projects/${imported.projectId}/settings/integrations`} style={{ marginTop: 10 }}>View scan history<Icon name="arrow-right" size={14} /></Link></section>}
       {preview && <section className="panel fade-in">{step(4, "Review what was found")}
         <div className="drift-summary"><span><strong>{preview.newComponents.length}</strong>new components</span><span><strong>{preview.changedComponents.length}</strong>changed</span><span><strong>{preview.missingComponents.length}</strong>missing</span><span><strong>{preview.conflicts.length}</strong>conflicts</span></div>

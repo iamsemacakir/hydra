@@ -147,7 +147,7 @@ export function TopologyWorkspace({ projectId }: { projectId: string }) {
       <select aria-label="Filter by component type" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}><option value="">All types</option>{[...new Set(topology?.nodes.map(node => node.type) ?? [])].sort().map(type => <option key={type}>{type}</option>)}</select>
       <select aria-label="Filter by health" value={healthFilter} onChange={e => setHealthFilter(e.target.value)}><option value="">All health</option>{HEALTH_ORDER.map(health => <option key={health}>{health}</option>)}</select>
       <select aria-label="Filter by dependency source" value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}><option value="">All sources</option>{["Declared", "Discovered", "Observed"].map(source => <option key={source}>{source}</option>)}</select>
-      <select aria-label="Inspect a component" value={selectedId ?? ""} onChange={e => selectNode(e.target.value)}><option value="">Inspect component</option>{topology?.nodes.map(node => <option value={node.id} key={node.id}>{node.name}</option>)}</select>
+      <select className="inspect-select" aria-label="Inspect a component" value={selectedId ?? ""} onChange={e => selectNode(e.target.value)}><option value="">Inspect component</option>{topology?.nodes.map(node => <option value={node.id} key={node.id}>{node.name}</option>)}</select>
       <button className="button ghost icon-only" onClick={() => setRefreshKey(x => x + 1)} aria-label="Refresh" title="Refresh"><Icon name="refresh-cw" /></button>
     </div>
     {error && <Notice className="workspace-error">{error}</Notice>}
@@ -156,8 +156,9 @@ export function TopologyWorkspace({ projectId }: { projectId: string }) {
         onEdgeClick={(_, edge) => { setSelectedId(null); setImpact(null); setSelectedEdgeId(edge.id); }} onPaneClick={clearSelection}
         nodesConnectable={false} fitView fitViewOptions={{ padding: { top: "72px", right: "28px", bottom: "28px", left: "28px" }, maxZoom: 1 }} minZoom={0.3} maxZoom={1.5} proOptions={{ hideAttribution: true }}>
         <Background gap={22} size={1.2} /><Controls showInteractive={false} /><MiniMap pannable zoomable nodeBorderRadius={8} nodeColor={node => {
+          // Healthy components stay quiet on the minimap, so the ones that need attention stand out.
           const tone = healthLook((node.data as ComponentNodeData).component.health).tone;
-          return tone === "warn" ? "var(--lp-warn)" : tone === "bad" ? "var(--lp-bad)" : tone === "ok" ? "var(--lp-ok)" : "var(--lp-line-strong)";
+          return tone === "warn" ? "var(--lp-warn)" : tone === "bad" ? "var(--lp-bad)" : tone === "ok" ? "color-mix(in oklab, var(--lp-ok) 38%, var(--lp-surface-2))" : "var(--lp-line-strong)";
         }} /></ReactFlow>
       {!topology && <div className="graph-loading">Loading the topology…</div>}
       {visibleTopology && visibleTopology.nodes.length === 0 && <div className="graph-loading">{topology?.nodes.length ? "No components match these filters." : "No components yet. Add them on the Components page, or import a repository."}</div>}

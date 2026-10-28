@@ -28,8 +28,8 @@ export default function DeploymentsPage() {
       <span className="toolbar-hint">{loaded ? `${deployments.length} deployments` : ""}</span>
     </div>
     {error && <Notice>{error}</Notice>}
-    <section className="panel table-panel fade-in"><table><thead><tr><th>Component</th><th>Version</th><th>Status</th><th>Started</th><th>Completed</th></tr></thead>
-      <tbody>{deployments.map(d => <tr key={d.id}><td><strong>{components.find(c => c.id === d.componentId)?.name ?? d.componentId}</strong></td><td><span className="version">{d.version}</span></td><td><DeploymentPill status={d.status} /></td><td>{time(d.startedAt)}</td><td>{time(d.completedAt)}</td></tr>)}</tbody></table>
+    <section className="panel table-panel stack-table fade-in"><table><thead><tr><th>Component</th><th>Version</th><th>Status</th><th>Started</th><th>Completed</th></tr></thead>
+      <tbody>{deployments.map(d => <tr key={d.id}><td data-primary><strong>{components.find(c => c.id === d.componentId)?.name ?? d.componentId}</strong></td><td data-label="Version"><span className="version">{d.version}</span></td><td data-label="Status"><DeploymentPill status={d.status} /></td><td data-label="Started">{time(d.startedAt)}</td><td data-label="Completed">{time(d.completedAt)}</td></tr>)}</tbody></table>
       {deployments.length === 0 && <p className="muted">{loaded ? "No deployments recorded in this environment yet." : "Loading deployments…"}</p>}</section>
   </main>;
 }

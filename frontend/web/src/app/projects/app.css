@@ -353,7 +353,8 @@
 .panel-note > svg { display: inline-block; vertical-align: -2px; }
 
 .two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.two-col > *, .stack > * { margin-top: 0; }
+/* Grids and stacks space their children with gap alone; .app raises this above the .panel + .panel margins. */
+.app .two-col > *, .app .stack > * { margin-top: 0; }
 
 .tile {
   position: relative;
@@ -365,7 +366,7 @@
 }
 
 /* Stats */
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 16px 0; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin: 16px 0; }
 .stat, .stats > div {
   display: flex;
   flex-direction: column;
@@ -609,6 +610,25 @@
 .table-link { padding: 0; border: 0; background: transparent; color: var(--lp-ink); font: inherit; font-weight: 560; text-align: left; cursor: pointer; }
 @media (hover: hover) and (pointer: fine) { .table-link:hover { color: var(--lp-accent); } }
 
+/*
+ * On a phone, a .stack-table panel shows each row as a small card instead of a table that scrolls
+ * sideways. Every cell carries data-label, printed in front of its value; the data-primary cell leads.
+ */
+@media (max-width: 720px) {
+  .table-panel.stack-table { padding: 6px 18px; overflow: visible; }
+  .table-panel.stack-table > .muted, .table-panel.stack-table > p { padding: 12px 0 4px; }
+  .stack-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .stack-table :where(table, tbody) { display: block; }
+  .stack-table tr { display: flex; flex-direction: column; gap: 6px; padding: 14px 0; border-bottom: 1px solid var(--lp-line); }
+  .stack-table tbody tr:last-child { border-bottom: 0; }
+  .app .stack-table td { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 24px; padding: 0; border: 0; text-align: right; }
+  .stack-table td::before { content: attr(data-label); flex: none; color: var(--lp-ink-3); font-family: var(--app-mono); font-size: 11px; line-height: 16px; font-weight: 500; letter-spacing: 0.08em; text-align: left; text-transform: uppercase; }
+  .app .stack-table td[data-primary] { order: -1; justify-content: flex-start; margin-bottom: 2px; font-size: 15px; line-height: 22px; text-align: left; }
+  .stack-table td[data-primary]::before { content: none; }
+  .stack-table td:has(> .work-tags:empty) { display: none; }
+  .app .stack-table tbody tr:hover td { background: transparent; }
+}
+
 /* ------------------------------------------------------------------ */
 /* Forms and toolbars                                                  */
 /* ------------------------------------------------------------------ */
@@ -779,6 +799,7 @@
   position: relative;
   display: block;
   min-height: 260px;
+  container-type: inline-size;
   overflow: hidden;
   border: 1px solid var(--lp-line);
   border-radius: 18px;
@@ -787,7 +808,8 @@
   background-size: 16px 16px;
   transition: border-color var(--lp-dur-ui) var(--lp-ease-out);
 }
-.map-preview svg.map { display: block; width: 100%; height: auto; margin-top: 8px; }
+/* The space under the picture keeps the "Open live map" button off the lowest component. */
+.map-preview svg.map { display: block; width: 100%; height: auto; margin-bottom: 48px; }
 .map-preview .map-line { fill: none; stroke: var(--lp-edge); stroke-width: 1.25; }
 .map-preview .map-point { fill: var(--lp-surface); stroke: var(--lp-line-strong); stroke-width: 1.25; }
 .map-preview .map-glyph[data-glyph="dot"], .map-preview .map-glyph[data-glyph="triangle"] { fill: var(--tone); }
@@ -812,7 +834,12 @@
   font-weight: 550;
 }
 .map-cta svg { transition: transform var(--lp-dur-ui) var(--lp-ease-out); }
-.map-caption { position: absolute; top: 12px; left: 14px; color: var(--lp-ink-3); font-family: var(--app-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+/* The caption sits above the picture, never on it. */
+.map-caption { display: block; padding: 12px 14px 0; color: var(--lp-ink-3); font-family: var(--app-mono); font-size: 11px; line-height: 16px; letter-spacing: 0.08em; text-transform: uppercase; }
+/* In a narrow box the picture shrinks, so its labels are drawn larger to stay readable. */
+@container (max-width: 460px) {
+  .map-preview .map-label { font-size: 15px; stroke-width: 5px; }
+}
 @media (hover: hover) and (pointer: fine) {
   .map-preview:hover { border-color: var(--lp-line-strong); }
   .map-preview:hover .map-cta svg { transform: translateX(3px); }
@@ -1121,7 +1148,6 @@
 .env-card .panel-note { margin-top: 0; }
 .env-card .health-bar { margin: 4px 0 0; height: 8px; }
 .env-card .panel-link { margin-top: auto; }
-
 .component-list { display: grid; }
 .component-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 14px 0; border-top: 1px solid var(--lp-line); }
 .component-row:first-child { border-top: 0; padding-top: 4px; }
@@ -1144,6 +1170,18 @@
 
 .connection-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 4px 0 14px; color: var(--lp-ink-3); font-size: 13px; }
 .connection-meta span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* The status of a running import: the pill, then the repository, wrapping as a whole. */
+.scan-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 14px; }
+.scan-status > .muted { overflow-wrap: anywhere; }
+
+/* A scan in the history: status, what it read, and Review. On a phone the details move under the status. */
+.feed-item.scan-item { grid-template-columns: 170px minmax(0, 1fr) auto; }
+.scan-item > .button { align-self: center; }
+@media (max-width: 720px) {
+  .feed-item.scan-item { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .scan-item > div { grid-column: 1 / -1; grid-row: 2; }
+}
 
 /* ------------------------------------------------------------------ */
 /* Motion                                                              */
@@ -1168,13 +1206,15 @@
 @media (max-width: 1040px) {
   .workspace-main { grid-template-columns: 1fr; height: auto; }
   .graph-area { height: 560px; }
+  /* The map then fills the width, so the minimap would sit on top of components. */
+  .graph-area .react-flow__minimap { display: none; }
   .detail-panel { max-height: none; border-top: 1px solid var(--lp-line); border-left: 0; }
   .empty-detail { min-height: 220px; }
   .ov-status { grid-template-columns: 1fr; }
 }
 @media (max-width: 900px) {
   .two-col { grid-template-columns: 1fr; }
-  .project-nav { margin-right: calc(var(--app-gutter) * -1); padding-right: var(--app-gutter); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+  .project-nav { margin-right: calc(var(--app-gutter) * -1); padding-right: calc(var(--app-gutter) + 32px); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
 }
 @media (max-width: 720px) {
   .app { --app-gutter: 16px; }
@@ -1196,7 +1236,15 @@
   .toolbar > label:not(.check-label), .workspace-toolbar > label:not(.check-label) { flex: 1 1 100%; justify-content: space-between; }
   .toolbar select, .workspace-toolbar select { flex: 1; }
   .workspace-toolbar .search-field { max-width: none; }
+  /* The component picker gets its own row, next to Refresh, so its label is never cut. */
+  .workspace-toolbar .inspect-select { flex: 1 1 200px; }
   .toolbar-hint { display: none; }
+  /* Form fields in a row take the full width, one under the other. */
+  .inline-form > label { flex: 1 1 100%; }
+  .inline-form > label :where(input, select) { width: 100%; min-width: 0; }
+  /* Number tiles: two per row, and a last odd tile spans the row. */
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .stats > :last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
 @media (max-width: 640px) {
   .app-user-name { display: none; }
@@ -1208,6 +1256,9 @@
   .project-grid { grid-template-columns: 1fr; }
   .component-row { grid-template-columns: 36px minmax(0, 1fr); }
   .component-row > .button { grid-column: 2; justify-self: start; }
+  .stat, .stats > div { padding: 14px 16px; border-radius: 16px; }
+  .stat-icon { width: 28px; height: 28px; margin-bottom: 6px; border-radius: 9px; }
+  .stat strong, .stats > div strong { font-size: 26px; line-height: 32px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

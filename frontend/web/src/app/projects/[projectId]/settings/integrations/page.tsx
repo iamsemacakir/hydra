@@ -8,10 +8,21 @@ import { PageHead } from "@/components/app/PageHead";
 import { StatusPill } from "@/components/app/Status";
 import { Icon } from "@/components/landing/Icon";
 import { DiscoveryPreview, getJson, postJson, Project, ProjectMember, RepositoryConnection, RepositoryScan } from "@/lib/api";
-import { formatWhen, formatWhenFull } from "@/lib/format";
+import { formatWhen, formatWhenFull, plural } from "@/lib/format";
 import type { StatusLook } from "@/lib/status";
 
 type Review = { connectionId: string; preview: DiscoveryPreview };
+
+/** Where a repository comes from, in words. */
+function providerLabel(provider: string): string {
+  return provider === "LocalDevelopment" ? "Bundled demo" : provider;
+}
+
+/** "4 files · 8 components · 7 dependencies · 1 warning" */
+function scanSummary(scan: RepositoryScan): string {
+  return [plural(scan.filesScanned, "file"), plural(scan.componentsDiscovered, "component"),
+    plural(scan.dependenciesDiscovered, "dependency", "dependencies"), plural(scan.warningsCount, "warning")].join(" · ");
+}
 
 function scanLook(status: RepositoryScan["status"]): StatusLook {
   switch (status) {
@@ -103,13 +114,13 @@ export default function IntegrationsPage() {
         {canManage && <button className="button primary" disabled={busy} onClick={() => void connectDemo()}><Icon name="plug" />Connect the bundled demo</button>}
       </section>}
       {connections.map(connection => <section className="panel fade-in" key={connection.id}><div className="panel-head"><h2>{connection.name}</h2><span className="chip" data-tone={connection.status === "Disconnected" ? "neutral" : "accent"}>{connection.status}</span></div>
-        <p className="connection-meta"><span><Icon name="git-branch" size={14} />{connection.defaultBranch}</span><span className="mono">{connection.repositoryUrl}</span><span>{connection.provider}</span><span><Icon name="clock" size={14} />Last successful scan: {connection.lastSuccessfulSyncAt ? when(connection.lastSuccessfulSyncAt) : "never"}</span></p>
+        <p className="connection-meta"><span><Icon name="git-branch" size={14} />{connection.defaultBranch}</span><span className="mono">{connection.repositoryUrl}</span><span>{providerLabel(connection.provider)}</span><span><Icon name="clock" size={14} />Last successful scan: {connection.lastSuccessfulSyncAt ? when(connection.lastSuccessfulSyncAt) : "never"}</span></p>
         {connection.lastSyncError && <p className="error">{connection.lastSyncError}</p>}
         {canManage && <div className="inline-form"><button className="button primary" disabled={busy || connection.status === "Disconnected"} onClick={() => void action(connection.id, "scans")}><Icon name="scan-search" />Scan now</button>
           <button className="button" disabled={busy} onClick={() => void action(connection.id, connection.status === "Disconnected" ? "reconnect" : "disconnect")}>{connection.status === "Disconnected" ? "Reconnect" : "Disconnect"}</button></div>}
         <h3>Scan history</h3>{(scans[connection.id] ?? []).length === 0 && <p className="muted">No scans yet.</p>}
-        <ol className="feed">{(scans[connection.id] ?? []).map(scan => <li className="feed-item" key={scan.id} style={{ gridTemplateColumns: "150px minmax(0, 1fr) auto" }}><StatusPill look={scanLook(scan.status)} /><div><strong>{when(scan.startedAt)}{scan.appliedAt ? " · applied" : ""}</strong>
-          <small>{scan.filesScanned} files · {scan.componentsDiscovered} components · {scan.dependenciesDiscovered} dependencies · {scan.warningsCount} warnings</small>
+        <ol className="feed">{(scans[connection.id] ?? []).map(scan => <li className="feed-item scan-item" key={scan.id}><StatusPill look={scanLook(scan.status)} /><div><strong>{when(scan.startedAt)}{scan.appliedAt ? " · applied" : ""}</strong>
+          <small>{scanSummary(scan)}</small>
           {scan.errorMessage && <small>{scan.errorMessage}</small>}</div>
           {scan.status === "Succeeded" || scan.status === "PartiallySucceeded" ? <button className="button small" onClick={() => void openPreview(connection.id, scan.id)}>Review</button> : <span />}</li>)}</ol>
       </section>)}
