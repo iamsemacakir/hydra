@@ -1,19 +1,20 @@
 {
   "realm": "devops",
+  "displayName": "Hydra",
   "enabled": true,
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
   "clients": [
     {
       "clientId": "devops-api",
-      "name": "DevOpsPlatform API",
+      "name": "Hydra API",
       "enabled": true,
       "protocol": "openid-connect",
       "bearerOnly": true
     },
     {
       "clientId": "devops-web",
-      "name": "DevOpsPlatform Web",
+      "name": "Hydra Web",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,

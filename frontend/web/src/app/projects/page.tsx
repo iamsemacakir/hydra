@@ -10,7 +10,7 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   useEffect(() => { getJson<Project[]>("/api/projects").then(setProjects).catch(e => setError(e.message)).finally(() => setLoading(false)); }, []);
   return <main className="page">
-    <div className="eyebrow">DEVOPS PLATFORM / SYSTEMS</div>
+    <div className="eyebrow">HYDRA / SYSTEMS</div>
     <div className="page-heading"><div><h1>Projects</h1><p className="lede">One view of lifecycle metadata, runtime health, and dependency impact.</p></div><div className="inline-form"><Link className="button" href="/projects/import">Import existing project</Link><Link className="button primary" href="/projects/new">New project</Link></div></div>
     {error && <p className="error">{error}. Check that the API is running.</p>}
     <div className="project-grid">{projects.map(project => <Link className="project-card" href={`/projects/${project.id}`} key={project.id}>

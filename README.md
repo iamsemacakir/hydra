@@ -1,4 +1,4 @@
-# DevOpsPlatform
+# Hydra
 
 Version 3 is being implemented in vertical slices from `AGENTS_V3.md`. The first slice adds persisted read-only repository scans, Docker Compose discovery, preview and apply, reconciliation, dependency evidence, and edge inspection. Open `/projects/import` to try the bundled Commerce System source; see [docs/discovery.md](docs/discovery.md), [docs/security.md](docs/security.md), and [docs/demo.md](docs/demo.md). Remote Git and Azure DevOps connections are not enabled yet. Board tickets can be dragged between state columns, with the Move menu retained for keyboard use.
 
@@ -15,7 +15,7 @@ Topology filters, dependency provenance comparison, and an environment compariso
 Project Components, Environments, and Settings pages and the expanded Commerce Demo are described in [docs/hardening.md](docs/hardening.md).
 The solo Version 2 delivery record is in [docs/iteration-plan-v2.md](docs/iteration-plan-v2.md).
 
-DevOpsPlatform is a diploma MVP for viewing a distributed system as one operational topology. It joins project and environment metadata, components and declared dependencies, deployment history, current runtime state, and operational events. Reverse dependency traversal shows which components may be affected by a failure.
+Hydra is a diploma MVP for viewing a distributed system as one operational topology. It joins project and environment metadata, components and declared dependencies, deployment history, current runtime state, and operational events. Reverse dependency traversal shows which components may be affected by a failure.
 
 The repository is a monorepo. The API is an ASP.NET Core 10 modular monolith with Domain, Application, Infrastructure, Persistence, and API projects. PostgreSQL stores the model; an in-memory SSE bus pushes live updates to a Next.js/React Flow UI. The bus is suitable for one API instance.
 

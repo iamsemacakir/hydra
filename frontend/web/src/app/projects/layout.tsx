@@ -10,7 +10,7 @@ export default async function ProjectsLayout({ children }: Readonly<{ children: 
       {session.user && (
         <header className="app-header">
           <div className="app-header-inner">
-            <Link href="/projects" className="app-brand">DevOpsPlatform</Link>
+            <Link href="/projects" className="app-brand">Hydra</Link>
             <div className="app-account">
               <span>{session.user.name ?? session.user.email ?? "Signed in"}</span>
               <form action={async () => { "use server"; await signOut({ redirectTo: "/signin" }); }}>

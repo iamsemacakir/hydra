@@ -42,7 +42,7 @@ export function Hero() {
             ))}
           </h1>
           <p className={styles.heroLede}>
-            Import a repository and get one live map of its services, what they depend on and how healthy they are. When one
+            Hydra turns a repository into one live map of its services, what they depend on and how healthy they are. When one
             fails, see which others it could reach.
           </p>
           <div className={styles.heroActions}>

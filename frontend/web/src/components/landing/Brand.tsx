@@ -19,7 +19,7 @@ export function Brand({ className }: { className?: string }) {
   return (
     <Link href="/" className={[styles.brand, className].filter(Boolean).join(" ")}>
       <LogoMark />
-      <span className={styles.brandName}>DevOpsPlatform</span>
+      <span className={styles.brandName}>Hydra</span>
     </Link>
   );
 }

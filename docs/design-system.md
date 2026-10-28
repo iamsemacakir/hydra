@@ -123,7 +123,7 @@ An arrow from A to B always means A depends on B; a failure travels against the 
 - One idea per sentence; no jargon the visual already explains.
 - Say "potentially affected", never "will fail". Label sample data as "sample system".
 - Describe only features that exist, and keep the claims table in [landing.md](landing.md) up to date.
-- The product name in the interface is **DevOpsPlatform** (see `AGENTS.md`, section 22). **Hydra** is used on the landing page as the name of the engine that reads and saves the file, as in the repository name.
+- The product is called **Hydra** in everything people read: the brand, page titles, headings, the sign-in screen and copy ([ADR 0020](decisions/0020-product-name-hydra.md)). `DevOpsPlatform` stays only as the working name of the code (solution, projects, namespaces).
 
 ### Checklist for a new page or section
 

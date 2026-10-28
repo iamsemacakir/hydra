@@ -19,7 +19,7 @@ export function Closing() {
             <h2 id="closing-title" className={styles.closingTitle}>
               See your whole system on one map.
             </h2>
-            <p className={styles.closingText}>Open the workspace, import a repository and watch its services fall into place. Nothing in it is ever executed.</p>
+            <p className={styles.closingText}>Open the workspace, import a repository and watch Hydra put its services in place. Nothing in it is ever executed.</p>
             <div className={styles.closingActions}>
               <ButtonLink href={ROUTES.workspace} arrow className={styles.closingPrimary}>
                 Open workspace

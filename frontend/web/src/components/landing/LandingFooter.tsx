@@ -17,7 +17,7 @@ export function LandingFooter() {
           <div className={styles.footerBrand}>
             <Brand />
             <p className={styles.footerTag}>
-              Centralized lifecycle management, monitoring and dependency analysis of distributed software systems.
+              Lifecycle, health and dependency analysis for distributed systems, on one live map.
             </p>
           </div>
           <nav aria-label="Footer">
@@ -32,7 +32,7 @@ export function LandingFooter() {
             </ul>
           </nav>
         </div>
-        <p className={styles.footerLegal}>© {new Date().getFullYear()} DevOpsPlatform</p>
+        <p className={styles.footerLegal}>© {new Date().getFullYear()} Hydra</p>
       </div>
     </footer>
   );

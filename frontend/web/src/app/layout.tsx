@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { themeInitScript } from "@/components/landing/theme";
 
-export const metadata: Metadata = { title: "DevOpsPlatform", description: "Operational topology and dependency impact" };
+export const metadata: Metadata = { title: "Hydra", description: "One live map of your services, their dependencies and their health" };
 
 /*
  * The root layout no longer reads the session, so the public landing page can be rendered
