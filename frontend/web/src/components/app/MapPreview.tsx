@@ -1,111 +1,190 @@
 "use client";
 
 import Link from "next/link";
+import { useId, useState } from "react";
 import type { Topology } from "@/lib/api";
-import { miniMap } from "@/lib/graph";
-import { countHealth, healthLook, type StatusLook } from "@/lib/status";
+import { COMPONENT_TYPE_ICONS, componentTypeLabel } from "@/lib/componentTypes";
+import { liveMap, type LiveMap, type MapCard } from "@/lib/graph";
+import { countHealth, healthHeadline, healthLook, POTENTIALLY_AFFECTED, type Glyph, type Tone } from "@/lib/status";
 import { cssVars } from "../landing/cssVars";
 import { Icon } from "../landing/Icon";
 import { InView } from "../landing/motion/InView";
 import { StatusGlyph } from "./Status";
 
-/** One line, in words, about what the picture shows (the narration under the map). */
-function narration(topology: Topology): StatusLook & { text: string } {
-  const problems = topology.nodes.filter(n => n.health === "Degraded" || n.health === "Unhealthy");
-  if (problems.length === 1) {
-    const look = healthLook(problems[0].health);
-    return { ...look, text: `${problems[0].name} is ${look.label.toLowerCase()}` };
+const ms = (value: number) => `${Math.round(value)}ms`;
+const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+const stateOf = (card: MapCard) => (card.hop === 0 ? "problem" : card.hop !== null ? "affected" : "plain");
+
+/** One thing the line under the map says, from `at` until `until` (null: it stays). */
+type Saying = { tone: Tone; glyph: Glyph | null; text: string; at: number; until: number | null };
+
+/** What the line under the map says, step by step: what was drawn, then what is wrong, then what it could reach. */
+function narration(topology: Topology, map: LiveMap): Saying[] {
+  const problems = topology.nodes.filter((node) => node.health === "Degraded" || node.health === "Unhealthy");
+  if (problems.length === 0 || map.at.problems === null) {
+    const counts = countHealth(topology.nodes);
+    const look = healthLook(counts.Healthy === topology.nodes.length ? "Healthy" : "Unknown");
+    return [{ tone: look.tone, glyph: look.glyph, text: healthHeadline(counts).replace(/\.$/, ""), at: map.at.health, until: null }];
   }
-  if (problems.length > 1) {
-    const look = healthLook(problems.some(n => n.health === "Unhealthy") ? "Unhealthy" : "Degraded");
-    return { ...look, text: `${problems.length} components need attention` };
+  const worst = healthLook(problems.some((node) => node.health === "Unhealthy") ? "Unhealthy" : "Degraded");
+  const problem = problems.length === 1 ? `${problems[0].name} is ${healthLook(problems[0].health).label.toLowerCase()}` : `${problems.length} components need attention`;
+  const drawn = `${plural(topology.nodes.length, "component", "components")} · ${plural(topology.edges.length, "dependency", "dependencies")}`;
+  const sayings: Saying[] = [
+    { tone: "neutral", glyph: null, text: drawn, at: map.at.health, until: map.at.problems },
+    { tone: worst.tone, glyph: worst.glyph, text: problem, at: map.at.problems, until: map.at.affected },
+  ];
+  if (map.at.affected !== null) {
+    sayings.push({ tone: "bad", glyph: POTENTIALLY_AFFECTED.glyph, text: `${problem} · ${map.affected} potentially affected`, at: map.at.affected, until: null });
   }
-  const counts = countHealth(topology.nodes);
-  if (counts.Healthy === topology.nodes.length) {
-    return { ...healthLook("Healthy"), text: topology.nodes.length === 1 ? "The component is healthy" : `All ${topology.nodes.length} components healthy` };
-  }
-  return { ...healthLook("Unknown"), text: "No problems recorded" };
+  return sayings;
+}
+
+/** A component: its type icon, its name and one status word (its type until its health shows). */
+function Card({ card, width, height, shadow }: { card: MapCard; width: number; height: number; shadow: string }) {
+  const look = healthLook(card.health);
+  const state = stateOf(card);
+  const left = -width / 2;
+  const vars: Record<`--${string}`, string> = { "--show": ms(card.at.show), "--health": ms(card.at.health) };
+  if (card.at.lit !== null) vars["--lit"] = ms(card.at.lit);
+  return (
+    <g className="map-card" data-state={state} data-tone={look.tone} transform={`translate(${card.x} ${card.y})`} style={cssVars(vars)}>
+      {card.label !== card.name && <title>{card.name}</title>}
+      <g className="map-card-body">
+        {state !== "plain" && <rect className="map-card-halo" x={left - 4} y={-height / 2 - 4} width={width + 8} height={height + 8} rx={15} />}
+        <rect className="map-card-box" x={left} y={-height / 2} width={width} height={height} rx={12} filter={`url(#${shadow})`} />
+        {state !== "plain" && <rect className="map-card-lit" x={left} y={-height / 2} width={width} height={height} rx={12} />}
+        <rect className="map-card-tile" x={left + 10} y={-15} width={30} height={30} rx={8} />
+        <Icon name={COMPONENT_TYPE_ICONS[card.type] ?? "box"} size={16} strokeWidth={1.75} x={left + 17} y={-8} className="map-card-icon" />
+        <text className="map-card-name" x={left + 52} y={-3}>{card.label}</text>
+        <text className="map-card-st map-st-type" x={left + 52} y={13}>{componentTypeLabel(card.type)}</text>
+        <g className="map-card-st map-st-health" data-tone={look.tone}>
+          <g transform={`translate(${left + 52} 4)`}><StatusGlyph glyph={look.glyph} size={10} /></g>
+          <text x={left + 67} y={13}>{look.label}</text>
+        </g>
+        {state === "affected" && (
+          <g className="map-card-st map-st-affected" data-tone={POTENTIALLY_AFFECTED.tone}>
+            <g transform={`translate(${left + 52} 4)`}><StatusGlyph glyph={POTENTIALLY_AFFECTED.glyph} size={10} /></g>
+            <text x={left + 67} y={13}>{POTENTIALLY_AFFECTED.label}</text>
+          </g>
+        )}
+        {state !== "plain" && <rect className="map-card-burst" x={left} y={-height / 2} width={width} height={height} rx={12} />}
+      </g>
+    </g>
+  );
+}
+
+/** The same component as a small chip, for boxes too narrow for the picture. */
+function Chip({ card }: { card: MapCard }) {
+  const look = healthLook(card.health);
+  const state = stateOf(card);
+  const vars: Record<`--${string}`, string> = { "--health": ms(card.at.health) };
+  if (card.at.lit !== null) vars["--lit"] = ms(card.at.lit);
+  return (
+    <span className="map-chip" data-state={state} data-tone={look.tone} style={cssVars(vars)}>
+      <span className="map-chip-glyph">
+        <span className="map-chip-wait" data-tone="neutral"><StatusGlyph glyph="ring" size={10} /></span>
+        <span className="map-chip-health" data-tone={look.tone}><StatusGlyph glyph={look.glyph} size={10} /></span>
+        {state === "affected" && <span className="map-chip-affected" data-tone={POTENTIALLY_AFFECTED.tone}><StatusGlyph glyph={POTENTIALLY_AFFECTED.glyph} size={10} /></span>}
+      </span>
+      {card.name}
+    </span>
+  );
 }
 
 /**
- * The environment's live map on the overview, on a dark stage with an indigo glow (like the picture on
- * the sign-in page): a labelled pill per component (status shape plus name) and a curved arrow per
- * dependency, on the same layered layout as the topology page.
+ * The environment's live map on the overview: a card per component (type icon, name, status word) on the
+ * same layered layout as the topology page, connectors that branch like a tree, and a line under the map
+ * that says what it shows. The whole box opens the topology page.
  *
- * It moves, calmly and only while it is on screen (`InView`): the map draws itself layer by layer when
- * it appears; a soft light runs along the dependencies every few seconds; degraded and unhealthy
- * components breathe; and from each of them, red travels back against the arrows to the components
- * that are potentially affected, then fades, while the line under the map says so in words. With
- * reduced motion it rests on the recorded state. A box narrower than 460 px shows the components
- * layer by layer instead (container query in app.css). The whole picture is one link to the topology.
+ * It tells its story once, when it first comes into view: the components appear layer by layer as the
+ * arrows to them grow, their health shows, degraded and unhealthy components light up, and from each a red
+ * arrow climbs to what depends on it, which lights up as potentially affected, one hop at a time. Then it
+ * rests on that last frame, which is also what reduced motion shows. Replay tells it again. The timing comes
+ * from `liveMap` (lib/graph.ts) and runs as CSS animations (app.css); a box narrower than 520 px shows the
+ * same story layer by layer.
  */
 export function MapPreview({ topology, href, environmentName }: { topology: Topology | null; href: string; environmentName: string }) {
+  const [run, setRun] = useState(0);
+  const shadow = `map-shadow-${useId().replace(/[^\w-]/g, "")}`;
   if (!topology || topology.nodes.length === 0) {
-    return <Link className="map-preview map-preview-empty" href={href}><span className="map-empty">{topology ? "No components yet. Add some to draw the map." : "Loading the map…"}</span></Link>;
+    return (
+      <Link className="map-preview map-preview-empty" href={href}>
+        <span className="map-empty">{topology ? "No components yet. Add some to draw the map." : "Loading the map…"}</span>
+      </Link>
+    );
   }
-  const map = miniMap(topology);
-  const now = narration(topology);
-  const problems = topology.nodes.filter(n => n.health === "Degraded" || n.health === "Unhealthy").length;
-  const w = map.pill.width;
-  const h = map.pill.height;
-  const halfW = w / 2;
-  const halfH = h / 2;
-  return <Link className="map-preview fade-in" href={href} aria-label={`Open the live topology of ${environmentName}: ${topology.nodes.length} components, ${problems} need attention`}>
-    <InView className="map-stage">
-      <span className="map-caption" aria-hidden="true">{environmentName} · live map</span>
-
-      <svg className="map" viewBox={`0 0 ${map.width} ${map.height}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
-        {map.edges.map(edge => <g key={edge.id} className="map-link" style={cssVars({ "--len": edge.length, "--d": edge.depth, "--h": edge.ripple ?? 0 })}>
-          <path className="map-edge" d={edge.d} />
-          <path className="map-arrow" d={edge.arrow} />
-          <path className="map-flow-glow" d={edge.d} />
-          <path className="map-flow" d={edge.d} />
-          {edge.ripple !== null && <><path className="map-hot-glow" d={edge.back} /><path className="map-hot" d={edge.back} /></>}
-        </g>)}
-        {map.nodes.map(node => {
-          const look = healthLook(node.health);
-          const problem = node.hop === 0;
-          const affected = node.hop !== null && node.hop > 0;
-          return <g key={node.id} className="map-node" data-tone={look.tone} data-problem={problem || undefined} data-affected={affected || undefined}
-            transform={`translate(${node.x} ${node.y})`} style={cssVars({ "--d": node.depth, "--h": node.hop ?? 0 })}>
-            {node.label !== node.name && <title>{node.name}</title>}
-            <g className="map-node-body">
-              {problem && <rect className="map-halo" x={-halfW - 5} y={-halfH - 5} width={w + 10} height={h + 10} rx={halfH + 5} />}
-              <rect className="map-pill" x={-halfW} y={-halfH} width={w} height={h} rx={halfH} />
-              <g className="map-glyph-now" transform={`translate(${-halfW + 10} -6)`}><StatusGlyph glyph={look.glyph} /></g>
-              {affected && <g className="map-aff" data-tone="bad">
-                <rect className="map-aff-ring" x={-halfW - 3} y={-halfH - 3} width={w + 6} height={h + 6} rx={halfH + 3} />
-                <g transform={`translate(${-halfW + 10} -6)`}><StatusGlyph glyph="triangle-outline" /></g>
-              </g>}
-              <text className="map-name" x={-halfW + 28} y={map.font * 0.36} fontSize={map.font}>{node.label}</text>
-            </g>
-          </g>;
-        })}
-      </svg>
-
-      <ol className="map-rows" aria-hidden="true">
-        {map.rows.map((row, index) => <li key={index} style={cssVars({ "--d": index })}>
-          {index > 0 && <span className="map-row-flow" />}
-          {row.map(node => {
-            const look = healthLook(node.health);
-            const affected = (node.hop ?? 0) > 0;
-            return <span key={node.id} className="map-chip" data-tone={look.tone} data-problem={node.hop === 0 || undefined}
-              data-affected={affected || undefined} style={cssVars({ "--h": node.hop ?? 0 })}>
-              <span className="map-chip-glyph">
-                <span className="map-glyph-now"><StatusGlyph glyph={look.glyph} size={10} /></span>
-                {affected && <span className="map-aff" data-tone="bad"><StatusGlyph glyph="triangle-outline" size={10} /></span>}
-              </span>
-              {node.name}
-            </span>;
-          })}
-        </li>)}
-      </ol>
-
-      <p className="map-say" data-ripple={map.affected > 0 || undefined} style={cssVars({ "--h": map.reach })} aria-hidden="true">
-        <span className="map-say-now" data-tone={now.tone}><StatusGlyph glyph={now.glyph} />{now.text}</span>
-        {map.affected > 0 && <span className="map-say-ripple" data-tone="bad"><StatusGlyph glyph="triangle-outline" />{map.affected} potentially affected</span>}
-      </p>
-      <span className="map-cta">Open live map<Icon name="arrow-right" size={14} /></span>
-    </InView>
-  </Link>;
+  const map = liveMap(topology);
+  const sayings = narration(topology, map);
+  return (
+    <div className="map-preview">
+      <InView className="map-stage">
+        <div className="map-head">
+          <p className="map-caption">{environmentName} · live map</p>
+          <button type="button" className="button small map-replay" onClick={() => setRun((count) => count + 1)} aria-label="Replay the map">
+            <Icon name="rotate-ccw" size={14} />
+            Replay
+          </button>
+        </div>
+        <div className="map-body" key={`map-${run}`}>
+          <svg className="map-svg" viewBox={`0 0 ${map.width} ${map.height}`} width={map.width} height={map.height} style={{ maxWidth: map.width }} aria-hidden="true" focusable="false">
+            <defs>
+              <filter id={shadow} x="-10%" y="-25%" width="120%" height="170%">
+                <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#000" floodOpacity="0.08" />
+              </filter>
+            </defs>
+            {map.lines.map((line) => {
+              const vars: Record<`--${string}`, string | number> = { "--draw": ms(line.at.draw), "--dur": ms(line.at.duration), "--len": line.length };
+              if (line.climb) vars["--climb"] = ms(line.climb.at);
+              return (
+                <g key={line.id} className="map-line" data-climb={line.climb ? "" : undefined} style={cssVars(vars)}>
+                  <path className="map-line-stroke" d={line.d} />
+                  <path className="map-line-head" d={line.head} />
+                </g>
+              );
+            })}
+            {map.lines.map((line) => line.climb && (
+              <g key={`climb-${line.id}`} className="map-climb" style={cssVars({ "--climb": ms(line.climb.at), "--len": line.climb.length })}>
+                <path className="map-climb-glow" d={line.climb.d} />
+                <path className="map-climb-stroke" d={line.climb.d} />
+                <path className="map-climb-head" d={line.climb.head} />
+              </g>
+            ))}
+            {map.cards.map((card) => <Card key={card.id} card={card} width={map.card.width} height={map.card.height} shadow={shadow} />)}
+          </svg>
+          <ol className="map-rows" aria-hidden="true">
+            {map.rows.map((row, index) => {
+              const vars: Record<`--${string}`, string> = { "--show": ms(row.show) };
+              if (row.link) vars["--draw"] = ms(row.link.draw);
+              if (row.link?.climb != null) vars["--climb"] = ms(row.link.climb);
+              return (
+                <li key={index} data-climb={row.link?.climb != null ? "" : undefined} style={cssVars(vars)}>
+                  {row.link && <span className="map-row-link" />}
+                  {row.link?.climb != null && <span className="map-row-climb" />}
+                  {row.cards.map((card) => <Chip key={card.id} card={card} />)}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+        <div className="map-foot">
+          <p className="map-say" key={`say-${run}`}>
+            {sayings.map((saying, index) => {
+              const vars: Record<`--${string}`, string> = { "--in": ms(saying.at) };
+              if (saying.until !== null) vars["--out"] = ms(saying.until);
+              return (
+                <span key={index} data-tone={saying.tone} data-out={saying.until !== null ? "" : undefined} aria-hidden={saying.until !== null || undefined} style={cssVars(vars)}>
+                  {saying.glyph && <StatusGlyph glyph={saying.glyph} />}
+                  {saying.text}
+                </span>
+              );
+            })}
+          </p>
+          <Link className="map-cta" href={href} aria-label={`Open the live topology of ${environmentName}`}>
+            Open live map
+            <Icon name="arrow-right" size={14} className="map-cta-arrow" />
+          </Link>
+        </div>
+      </InView>
+    </div>
+  );
 }

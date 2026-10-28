@@ -54,19 +54,6 @@
   --lp-tag-blue: #1f5fc9;
   --lp-tag-blue-soft: #e4edfc;
   --lp-glass: rgb(255 255 255 / 74%);
-  /* The dark stage (the overview's live map): dark in both themes, so it uses the dark status colours. */
-  --lp-stage: #0f1218;
-  --lp-stage-ink: #f0f2f4;
-  --lp-stage-ink-2: #a7abb3;
-  --lp-stage-glass: rgb(255 255 255 / 7%);
-  --lp-stage-line: rgb(255 255 255 / 16%);
-  --lp-stage-edge: rgb(255 255 255 / 30%);
-  --lp-stage-dot: rgb(255 255 255 / 9%);
-  --lp-stage-ok: #3ddc97;
-  --lp-stage-warn: #f5b83d;
-  --lp-stage-bad: #ff6b72;
-  --lp-stage-accent: #9394ff;
-  --lp-stage-accent-2: #22d3ee;
 }
 :root[data-landing-theme="dark"] {
   --lp-bg: #0c0e12;
@@ -100,7 +87,6 @@
   --lp-tag-blue: #8ab4ff;
   --lp-tag-blue-soft: #172640;
   --lp-glass: rgb(26 28 34 / 72%);
-  --lp-stage: #090b10;
 }
 
 /*

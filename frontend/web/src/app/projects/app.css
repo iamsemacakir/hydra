@@ -797,155 +797,169 @@
 .all-clear { display: inline-flex; align-items: center; gap: 8px; margin-top: 22px; color: var(--lp-ok); font-size: 14px; font-weight: 560; }
 
 /*
- * The overview's live map: a dark stage with an indigo glow (like the picture on the sign-in page),
- * glass pills and curved arrows. It is dark in both themes, so it uses the --lp-stage-* tokens.
+ * The overview's live map (MapPreview; liveMap in lib/graph.ts): a card per component (type icon, name, status
+ * word) on the layered layout, connectors that branch like a tree, and a line under the map that says what it
+ * shows.
  *
- * Motion, all with the same calm rhythm and only while the map is on screen (InView sets data-inview):
- * - draw-in, once: pills rise in layer by layer (--d), then each line draws itself and its arrow appears;
- * - flow: a soft light runs along every line, top to bottom, every 6 s;
- * - pulse: degraded and unhealthy components breathe;
- * - ripple: every 9 s, red travels back against the arrows from each problem, hop by hop (--h), the
- *   components it reaches show as potentially affected, the line under the map says so, then all fades.
- * Resting styles are the recorded state (lines drawn, no ripple), which is what reduced motion shows.
+ * It tells its story once, when it first comes into view, with CSS animations only. Every element waits for its
+ * own moment, given in milliseconds by liveMap as --show, --draw, --health, --lit and --climb:
+ * 1. the components appear layer by layer, each once the arrows to it have grown;
+ * 2. their health shows, top to bottom;
+ * 3. degraded and unhealthy components light up;
+ * 4. a red arrow climbs from each to what depends on it, which lights up as potentially affected; then the next.
+ * Resting styles are the final frame, which is what reduced motion shows. Replay remounts the picture so the
+ * animations start again; off screen they pause (InView).
  */
 .map-preview {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 280px;
+  min-height: 300px;
   overflow: hidden;
-  border: 1px solid color-mix(in oklab, var(--lp-stage) 75%, var(--lp-line));
-  border-radius: 18px;
-  background:
-    radial-gradient(60% 62% at 50% 46%, color-mix(in oklab, var(--lp-stage-accent) 24%, transparent), transparent 72%),
-    radial-gradient(45% 50% at 94% 100%, color-mix(in oklab, var(--lp-stage-accent-2) 10%, transparent), transparent 70%),
-    var(--lp-stage);
-  color: var(--lp-stage-ink);
+  border: 1px solid var(--lp-line);
+  border-radius: 20px;
+  background: var(--lp-bg);
   container-type: inline-size;
   isolation: isolate;
-  transition: border-color var(--lp-dur-ui) var(--lp-ease-out), box-shadow var(--lp-dur-ui) var(--lp-ease-out);
+  transition: border-color var(--lp-dur-ui) var(--lp-ease-out);
 }
-/* Faint dots that fade out towards the edges. */
+/* A faint grid that fades out towards the edges. */
 .map-preview::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
-  background-image: radial-gradient(var(--lp-stage-dot) 1px, transparent 1.3px);
-  background-size: 16px 16px;
-  -webkit-mask-image: radial-gradient(62% 60% at 50% 50%, #000 30%, transparent 100%);
-  mask-image: radial-gradient(62% 60% at 50% 50%, #000 30%, transparent 100%);
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--lp-line) 75%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--lp-line) 75%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+  -webkit-mask-image: radial-gradient(70% 68% at 50% 46%, #000 35%, transparent 100%);
+  mask-image: radial-gradient(70% 68% at 50% 46%, #000 35%, transparent 100%);
 }
-/* On the stage, status colours are the dark-theme ones whatever the page theme. */
-.map-preview [data-tone="ok"] { --tone: var(--lp-stage-ok); --tone-ink: var(--lp-stage-ok); }
-.map-preview [data-tone="warn"] { --tone: var(--lp-stage-warn); --tone-ink: var(--lp-stage-warn); }
-.map-preview [data-tone="bad"] { --tone: var(--lp-stage-bad); --tone-ink: var(--lp-stage-bad); }
-.map-preview [data-tone="neutral"] { --tone: var(--lp-stage-ink-2); --tone-ink: var(--lp-stage-ink-2); }
-.map-preview [data-tone="accent"] { --tone: var(--lp-stage-accent); --tone-ink: var(--lp-stage-accent); }
-
-.map-stage { position: relative; display: flex; flex: 1; flex-direction: column; padding-bottom: 58px; }
+.map-stage { display: flex; flex: 1; flex-direction: column; }
 .map-stage[data-inview="false"] *,
 .map-stage[data-inview="false"] *::before,
 .map-stage[data-inview="false"] *::after { animation-play-state: paused !important; }
-.map-caption { display: block; padding: 14px 16px 0; color: var(--lp-stage-ink-2); font-family: var(--app-mono); font-size: 11px; line-height: 16px; letter-spacing: 0.08em; text-transform: uppercase; }
-
-/* The picture. */
-.map-preview svg.map { display: block; width: 100%; height: auto; max-height: 340px; margin: auto 0; padding: 10px 12px 0; overflow: visible; }
-.map-preview .map-node-body { animation: map-rise 640ms var(--lp-ease-out) both; animation-delay: calc(var(--d, 0) * 160ms + 120ms); }
-.map-preview .map-pill { fill: var(--lp-stage-glass); stroke: var(--lp-stage-line); stroke-width: 1; }
-.map-preview .map-node[data-problem] .map-pill { fill: color-mix(in oklab, var(--tone) 16%, var(--lp-stage)); stroke: color-mix(in oklab, var(--tone) 70%, transparent); }
-.map-preview .map-name { fill: var(--lp-stage-ink); font-family: var(--app-sans); font-weight: 560; }
-.map-preview .map-node[data-problem] .map-name { fill: var(--tone); font-weight: 620; }
-.map-preview .map-edge { fill: none; stroke: var(--lp-stage-edge); stroke-width: 1.3; stroke-linecap: round; stroke-dasharray: var(--len); stroke-dashoffset: 0; animation: map-draw 800ms var(--lp-ease-out) both; animation-delay: calc(var(--d, 0) * 160ms + 320ms); }
-.map-preview .map-arrow { fill: var(--lp-stage-edge); animation: map-fade 300ms var(--lp-ease-out) both; animation-delay: calc(var(--d, 0) * 160ms + 950ms); }
-
-/* Flow: a soft light along every line. The glow is a wider, fainter copy of the same dash. */
-.map-preview :is(.map-flow, .map-flow-glow) { fill: none; stroke: var(--lp-stage-accent); stroke-linecap: round; stroke-dasharray: 12 var(--len); stroke-dashoffset: 12px; opacity: 0; animation: map-flow 6s linear infinite; animation-delay: calc(var(--d, 0) * 450ms + 2.4s); }
-.map-preview .map-flow { stroke-width: 2; --peak: 0.95; }
-.map-preview .map-flow-glow { stroke-width: 7; --peak: 0.22; }
-
-/* Pulse: problems breathe. */
-.map-preview .map-halo { fill: color-mix(in oklab, var(--tone) 12%, transparent); stroke: color-mix(in oklab, var(--tone) 45%, transparent); stroke-width: 1; opacity: 0.6; transform-box: fill-box; transform-origin: center; animation: map-pulse 2.8s ease-in-out 1.4s infinite; }
-
-/* Ripple: red runs back along the lines, and what it reaches is potentially affected for a moment. */
-.map-preview :is(.map-hot, .map-hot-glow) { fill: none; stroke: var(--lp-stage-bad); stroke-linecap: round; stroke-dasharray: var(--len); stroke-dashoffset: var(--len); opacity: 0; animation: map-hot 9s ease-in-out infinite; animation-delay: calc(var(--h, 1) * 700ms + 2.4s); }
-.map-preview .map-hot { stroke-width: 2; --peak: 1; }
-.map-preview .map-hot-glow { stroke-width: 7; --peak: 0.25; }
-.map-preview .map-aff { opacity: 0; animation: map-aff 9s var(--lp-ease-out) infinite; animation-delay: calc(var(--h, 1) * 700ms + 3s); }
-.map-preview .map-aff-ring { fill: color-mix(in oklab, var(--lp-stage-bad) 10%, transparent); stroke: var(--lp-stage-bad); stroke-width: 1.3; stroke-dasharray: 4 3; }
-.map-preview [data-affected] .map-glyph-now { animation: map-aff-out 9s var(--lp-ease-out) infinite; animation-delay: calc(var(--h, 1) * 700ms + 3s); }
-
-/* The line under the map: what the picture shows, in words. During the ripple it counts what could be reached, in step
-   with the furthest component the ripple lights (--h on .map-say is the ripple's reach). */
-.map-say { position: absolute; left: 14px; bottom: 14px; display: grid; justify-items: start; margin: 0; }
-.map-say > span { grid-area: 1 / 1; display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border: 1px solid var(--lp-stage-line); border-radius: 999px; background: color-mix(in oklab, var(--lp-stage) 55%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); color: var(--lp-stage-ink); font-size: 12.5px; line-height: 16px; font-weight: 560; white-space: nowrap; }
-.map-say .map-say-ripple { opacity: 0; border-color: color-mix(in oklab, var(--lp-stage-bad) 45%, transparent); color: var(--lp-stage-bad); animation: map-aff 9s var(--lp-ease-out) infinite; animation-delay: calc(var(--h, 1) * 700ms + 3s); }
-.map-say[data-ripple] .map-say-now { animation: map-aff-out 9s var(--lp-ease-out) infinite; animation-delay: calc(var(--h, 1) * 700ms + 3s); }
-
-.map-cta { position: absolute; right: 14px; bottom: 14px; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px; background: var(--lp-stage-ink); color: var(--lp-stage); font-size: 13px; font-weight: 600; }
-.map-cta svg { transition: transform var(--lp-dur-ui) var(--lp-ease-out); }
+.map-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px 0 18px; }
+.map-caption { margin: 0; color: var(--lp-accent); font-family: var(--app-mono); font-size: 11px; line-height: 16px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
+/* Above the link that covers the box. */
+.map-replay { position: relative; z-index: 2; }
+.map-body { display: grid; flex: 1; place-items: center; padding: 6px 8px; }
+.map-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.map-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 14px 14px 16px; }
+.map-say { display: grid; justify-items: start; min-width: 0; margin: 0; }
+.map-say > span { grid-area: 1 / 1; display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 6px 13px; border-radius: 16px; background: var(--lp-surface-2); color: var(--lp-ink-2); font-size: 12.5px; line-height: 18px; font-weight: 600; }
+.map-say > span[data-tone="ok"] { background: var(--lp-ok-soft); color: var(--lp-ok); }
+.map-say > span[data-tone="warn"] { background: var(--lp-warn-soft); color: var(--lp-warn); }
+.map-say > span[data-tone="bad"] { background: var(--lp-bad-soft); color: var(--lp-bad-ink); }
+.map-cta { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 13px; border-radius: 999px; background: var(--lp-inverse); color: var(--lp-on-inverse); font-size: 13px; line-height: 18px; font-weight: 600; white-space: nowrap; }
+/* The whole box opens the topology: the link stretches over it. */
+.map-cta::after { content: ""; position: absolute; inset: 0; z-index: 1; border-radius: 20px; }
+.map-cta-arrow { transition: transform var(--lp-dur-ui) var(--lp-ease-out); }
 @media (hover: hover) and (pointer: fine) {
-  .map-preview:hover { border-color: color-mix(in oklab, var(--lp-stage-accent) 45%, var(--lp-stage)); box-shadow: 0 16px 40px -20px color-mix(in oklab, var(--lp-stage-accent) 55%, transparent); }
-  .map-preview:hover .map-cta svg { transform: translateX(3px); }
+  .map-preview:has(.map-cta:hover) { border-color: var(--lp-line-strong); }
+  .map-cta:hover .map-cta-arrow { transform: translateX(3px); }
 }
+
+/*
+ * Cards. --tone comes from the card's health (data-tone). A problem or a potentially affected card lights up
+ * through an extra layer (.map-card-lit) that fades in: animating a fill into a color-mix() value is unreliable
+ * in Chrome, so only opacity and plain token colours are animated.
+ */
+.map-card-body { transform-box: fill-box; transform-origin: center; }
+.map-card-box { fill: var(--lp-surface); stroke: var(--lp-line); stroke-width: 1px; }
+.map-card-tile { fill: var(--lp-surface-2); }
+.map-card-icon { color: var(--lp-ink-2); }
+.map-card-name { fill: var(--lp-ink); font-family: var(--app-sans); font-size: 13px; font-weight: 600; }
+.map-card-st { font-family: var(--app-sans); font-size: 11.5px; font-weight: 500; }
+.map-st-type { fill: var(--lp-ink-3); }
+.map-st-health text,
+.map-st-affected text { fill: var(--tone-ink); }
+.map-card:not([data-state="plain"]) .map-card-box { stroke: transparent; }
+.map-card-lit { fill: color-mix(in oklab, var(--tone) 8%, var(--lp-surface)); stroke: var(--tone); stroke-width: 1.5px; }
+.map-card[data-state="problem"] .map-card-tile { fill: var(--tone-soft); }
+.map-card[data-state="problem"] .map-card-icon { color: var(--tone-ink); }
+.map-card[data-state="problem"] .map-card-halo { fill: none; stroke: color-mix(in oklab, var(--tone) 20%, transparent); stroke-width: 4px; }
+.map-card[data-state="affected"] .map-card-lit { fill: color-mix(in oklab, var(--lp-bad) 5%, var(--lp-surface)); stroke: var(--lp-bad); stroke-dasharray: 5 4; }
+.map-card[data-state="affected"] .map-card-tile { fill: var(--lp-bad-soft); }
+.map-card[data-state="affected"] .map-card-icon { color: var(--lp-bad-ink); }
+.map-card[data-state="affected"] .map-card-halo { fill: none; stroke: color-mix(in oklab, var(--lp-bad) 16%, transparent); stroke-width: 4px; }
+.map-card-burst { fill: none; stroke: var(--tone); stroke-width: 2px; vector-effect: non-scaling-stroke; opacity: 0; transform-box: fill-box; transform-origin: center; }
+.map-card[data-state="affected"] .map-card-burst { stroke: var(--lp-bad); }
+:root[data-landing-theme="dark"] .map-svg feDropShadow { flood-opacity: 0.4; }
+
+/* Connectors, and the red arrows a failure climbs. */
+.map-line-stroke { fill: none; stroke: var(--lp-line-strong); stroke-width: 1.5px; stroke-dasharray: var(--len); }
+.map-line-head { fill: var(--lp-line-strong); }
+.map-line[data-climb] .map-line-head { opacity: 0; }
+.map-climb-stroke,
+.map-climb-glow { fill: none; stroke: var(--lp-bad); stroke-dasharray: var(--len); }
+.map-climb-stroke { stroke-width: 2.6px; }
+.map-climb-glow { stroke-width: 9px; opacity: 0.14; }
+.map-climb-head { fill: var(--lp-bad); }
+
+/* The story. */
+.map-card-body { animation: map-appear 560ms cubic-bezier(0.34, 1.56, 0.64, 1) var(--show) both; }
+.map-line-stroke { animation: map-draw var(--dur) cubic-bezier(0.4, 0, 0.2, 1) var(--draw) both; }
+.map-line-head { animation: map-in 180ms ease-out calc(var(--draw) + var(--dur) - 120ms) both; }
+.map-line[data-climb] .map-line-head { animation: map-in 180ms ease-out calc(var(--draw) + var(--dur) - 120ms) both, map-out 180ms ease var(--climb) forwards; }
+/* A status word gives way to the next one: the old word fades out first, then the new one fades in. */
+.map-st-type { opacity: 0; animation: map-out 160ms ease var(--health) both; }
+.map-st-health { animation: map-in 240ms ease calc(var(--health) + 120ms) both; }
+.map-card[data-state="affected"] .map-st-health { opacity: 0; animation: map-in 240ms ease calc(var(--health) + 120ms) both, map-out 160ms ease var(--lit) forwards; }
+.map-st-affected { animation: map-in 240ms ease calc(var(--lit) + 120ms) both; }
+.map-card:not([data-state="plain"]) .map-card-box { animation: map-unlit-box 400ms ease var(--lit) backwards; }
+.map-card-lit { animation: map-in 400ms ease var(--lit) backwards; }
+.map-card:not([data-state="plain"]) .map-card-tile { animation: map-unlit-tile 400ms ease var(--lit) backwards; }
+.map-card:not([data-state="plain"]) .map-card-icon { animation: map-unlit-icon 400ms ease var(--lit) backwards; }
+.map-card-halo { animation: map-in 400ms ease var(--lit) backwards; }
+.map-card-burst { animation: map-burst 900ms ease-out var(--lit); }
+.map-climb-stroke,
+.map-climb-glow { animation: map-draw 700ms cubic-bezier(0.4, 0, 0.2, 1) var(--climb) both; }
+.map-climb-head { animation: map-in 200ms ease-out calc(var(--climb) + 560ms) both; }
+.map-say > span { animation: map-say-in 300ms ease var(--in) both; }
+.map-say > span[data-out] { opacity: 0; animation: map-say-in 300ms ease var(--in) both, map-out 300ms ease var(--out) forwards; }
 
 /* Too narrow for the picture: the same components layer by layer, joined by small arrows. */
 .map-rows { display: none; }
-.map-chip { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px 0 9px; border: 1px solid var(--lp-stage-line); border-radius: 999px; background: var(--lp-stage-glass); color: var(--lp-stage-ink); font-size: 12px; line-height: 16px; font-weight: 560; white-space: nowrap; }
-.map-chip[data-problem] { border-color: color-mix(in oklab, var(--tone) 70%, transparent); background: color-mix(in oklab, var(--tone) 16%, var(--lp-stage)); color: var(--tone); animation: map-chip-pulse 2.8s ease-in-out 1.4s infinite; }
+.map-chip { position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 11px 0 9px; border: 1px solid var(--lp-line); border-radius: 999px; background: var(--lp-surface); color: var(--lp-ink); font-size: 12px; line-height: 16px; font-weight: 600; white-space: nowrap; }
 .map-chip-glyph { display: inline-grid; flex: none; }
 .map-chip-glyph > span { grid-area: 1 / 1; display: grid; place-items: center; }
-.map-chip[data-affected]::after { content: ""; position: absolute; inset: -3px; border: 1.3px dashed var(--lp-stage-bad); border-radius: 999px; opacity: 0; animation: map-aff 9s var(--lp-ease-out) infinite; animation-delay: calc(var(--h, 1) * 700ms + 3s); }
-@container (max-width: 460px) {
-  .map-preview svg.map { display: none; }
-  .map-say { position: static; order: 1; margin: 10px 14px 0; }
-  .map-rows { order: 2; display: grid; justify-items: center; margin: auto 0; padding: 18px 12px 6px; }
-  .map-rows li { position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; animation: map-rise 600ms var(--lp-ease-out) both; animation-delay: calc(var(--d, 0) * 160ms + 120ms); }
-  .map-rows li + li { margin-top: 24px; }
-  .map-rows li + li::before { content: ""; position: absolute; top: -20px; left: calc(50% - 0.65px); width: 1.3px; height: 10px; background: var(--lp-stage-edge); }
-  .map-rows li + li::after { content: ""; position: absolute; top: -10px; left: calc(50% - 4px); border: 4px solid transparent; border-top: 6px solid var(--lp-stage-edge); border-bottom: 0; }
-  .map-row-flow { position: absolute; top: -21px; left: calc(50% - 2px); width: 4px; height: 4px; border-radius: 50%; background: var(--lp-stage-accent); box-shadow: 0 0 6px var(--lp-stage-accent); opacity: 0; animation: map-dot 6s linear infinite; animation-delay: calc(var(--d, 0) * 450ms + 2.4s); }
+.map-chip[data-state="problem"] { border-color: var(--tone); background: var(--tone-soft); animation: map-unlit-chip 400ms ease var(--lit) backwards; }
+.map-chip[data-state="affected"] { border: 1.5px dashed var(--lp-bad); background: var(--lp-bad-soft); animation: map-unlit-chip 400ms ease var(--lit) backwards; }
+.map-chip-wait { opacity: 0; animation: map-out 160ms ease var(--health) both; }
+.map-chip-health { animation: map-in 240ms ease calc(var(--health) + 120ms) both; }
+.map-chip[data-state="affected"] .map-chip-health { opacity: 0; animation: map-in 240ms ease calc(var(--health) + 120ms) both, map-out 160ms ease var(--lit) forwards; }
+.map-chip-affected { animation: map-in 240ms ease calc(var(--lit) + 120ms) both; }
+@container (max-width: 520px) {
+  .map-svg { display: none; }
+  .map-body { padding: 12px 12px 8px; }
+  .map-rows { display: grid; justify-items: center; margin: 0; padding: 0; list-style: none; }
+  .map-rows li { position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; animation: map-rise 520ms var(--lp-ease-out) var(--show) both; }
+  .map-rows li + li { margin-top: 34px; }
+  .map-row-link { position: absolute; top: -30px; left: calc(50% - 0.75px); width: 1.5px; height: 17px; background: var(--lp-line-strong); transform-origin: top; animation: map-grow 420ms cubic-bezier(0.4, 0, 0.2, 1) var(--draw) both; }
+  .map-row-link::after { content: ""; position: absolute; left: -3.25px; bottom: -6px; border: 4px solid transparent; border-top: 6px solid var(--lp-line-strong); border-bottom: 0; animation: map-in 160ms ease-out calc(var(--draw) + 320ms) both; }
+  .map-rows li[data-climb] .map-row-link::after { opacity: 0; animation: map-in 160ms ease-out calc(var(--draw) + 320ms) both, map-out 160ms ease var(--climb) forwards; }
+  .map-row-climb { position: absolute; top: -24px; left: calc(50% - 1.3px); width: 2.6px; height: 20px; background: var(--lp-bad); transform-origin: bottom; animation: map-grow 700ms cubic-bezier(0.4, 0, 0.2, 1) var(--climb) both; }
+  .map-row-climb::after { content: ""; position: absolute; left: -3.2px; top: -7px; border: 4.5px solid transparent; border-bottom: 7px solid var(--lp-bad); border-top: 0; animation: map-in 200ms ease-out calc(var(--climb) + 560ms) both; }
 }
 
-@keyframes map-rise { from { opacity: 0; transform: translateY(8px); } }
-@keyframes map-fade { from { opacity: 0; } }
+@keyframes map-appear { from { opacity: 0; transform: scale(0.8); } }
+@keyframes map-rise { from { opacity: 0; transform: translateY(6px); } }
 @keyframes map-draw { from { stroke-dashoffset: var(--len); } }
-@keyframes map-flow {
-  0% { stroke-dashoffset: 12px; opacity: 0; }
-  4%, 30% { opacity: var(--peak); }
-  34%, 100% { stroke-dashoffset: calc(var(--len) * -1px); opacity: 0; }
-}
-@keyframes map-pulse {
-  0%, 100% { opacity: 0.35; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.05); }
-}
-@keyframes map-hot {
-  0% { stroke-dashoffset: var(--len); opacity: var(--peak); }
-  8% { stroke-dashoffset: 0; }
-  52% { stroke-dashoffset: 0; opacity: var(--peak); }
-  60%, 100% { stroke-dashoffset: 0; opacity: 0; }
-}
-@keyframes map-aff {
-  0% { opacity: 0; }
-  4%, 46% { opacity: 1; }
-  54%, 100% { opacity: 0; }
-}
-@keyframes map-aff-out {
-  0% { opacity: 1; }
-  4%, 46% { opacity: 0; }
-  54%, 100% { opacity: 1; }
-}
-@keyframes map-chip-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 transparent; }
-  50% { box-shadow: 0 0 0 5px color-mix(in oklab, var(--tone) 22%, transparent); }
-}
-@keyframes map-dot {
-  0% { opacity: 0; transform: translateY(0); }
-  4%, 30% { opacity: 1; }
-  34%, 100% { opacity: 0; transform: translateY(11px); }
-}
+@keyframes map-grow { from { transform: scaleY(0); } }
+@keyframes map-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes map-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes map-say-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes map-unlit-box { from { stroke: var(--lp-line); } }
+@keyframes map-unlit-tile { from { fill: var(--lp-surface-2); } }
+@keyframes map-unlit-icon { from { color: var(--lp-ink-2); } }
+@keyframes map-unlit-chip { from { border-color: var(--lp-line); border-style: solid; background-color: var(--lp-surface); } }
+@keyframes map-burst { from { opacity: 0.9; transform: scale(1); } to { opacity: 0; transform: scale(1.1, 1.45); } }
+@media (prefers-reduced-motion: reduce) { .map-replay { display: none; } }
 
-.map-empty { display: grid; place-items: center; flex: 1; min-height: 260px; padding: 24px; color: var(--lp-stage-ink-2); font-size: 14px; text-align: center; }
+.map-preview-empty { min-height: 260px; }
+.map-empty { display: grid; flex: 1; place-items: center; padding: 24px; color: var(--lp-ink-3); font-size: 14px; text-align: center; }
 
 .callout { display: grid; gap: 14px; margin-bottom: 16px; }
 

@@ -21,4 +21,4 @@ The graph is laid out in layers (`layoutTopology` in `frontend/web/src/lib/graph
 3. A component that nothing depends on moves down to sit right above what it depends on.
 4. In each row, a component is placed under the average position of its dependents, then neighbours are pushed apart so they never overlap.
 
-Edges are curved and end in an arrowhead. The line shows the dependency source: solid for Declared, dashed for Discovered, dotted for Observed; a non-declared source is also named in the edge label. After an impact analysis the path a failure could travel is red and dashed, and unrelated components are dimmed. The overview's map preview (`miniMap`) uses the same layout.
+Edges are curved and end in an arrowhead. The line shows the dependency source: solid for Declared, dashed for Discovered, dotted for Observed; a non-declared source is also named in the edge label. After an impact analysis the path a failure could travel is red and dashed, and unrelated components are dimmed. The overview's live map (`liveMap`) uses the same layout, with each layer's columns rounded to half a card so a component with one dependent sits right under it.

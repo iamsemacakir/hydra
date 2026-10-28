@@ -187,59 +187,100 @@ export function mapTopology(topology: Topology, selectedId: string | null, impac
   return { nodes, edges };
 }
 
-/**
- * A small picture of the topology (the overview's map preview): every component is a labelled pill
- * on the layered layout above, and every dependency a curve with an arrowhead, from the bottom of the
- * dependent to the top of what it depends on. `rows` holds the same components layer by layer, for
- * boxes too narrow for the picture.
+/*
+ * The overview's live map (MapPreview): a card per component on the layered layout above, and a connector per
+ * dependency from the bottom of the dependent to the top of what it depends on. Connectors that leave the same
+ * card share a short trunk and then branch, like a tree.
  *
- * It also carries what the preview animates: the layer of each pill and line (they appear top to
- * bottom), and how far each component is from a degraded or unhealthy one against the arrows (`hop`,
- * 0 for the problem itself, 1 for what depends on it directly, and so on). Those are the components a
- * failure could reach: potentially affected, never certainly.
+ * The map tells what it shows step by step, so every element carries the moment of its part, in milliseconds
+ * from the start (MapPreview turns them into CSS animation delays):
+ * 1. the components appear layer by layer, each layer once the arrows to it have grown;
+ * 2. their health shows, top to bottom;
+ * 3. degraded and unhealthy components light up;
+ * 4. from each of them a red arrow climbs back along the dependency to what depends on it, which lights up as
+ *    potentially affected; then the next hop, until nothing else depends on them.
+ * `rows` holds the same story layer by layer, for boxes too narrow for the picture.
  */
-export type MiniMapNode = { id: string; name: string; label: string; health: TopologyNode["health"]; x: number; y: number; depth: number; hop: number | null };
-export type MiniMapEdge = {
+
+type Health = TopologyNode["health"];
+
+/** A component on the map. */
+export type MapCard = {
   id: string;
-  /** The curve, from the dependent to what it depends on. */
-  d: string;
-  /** The same curve the other way, for a failure travelling back. */
-  back: string;
-  arrow: string;
-  /** Slightly generous length, for stroke-dash drawing. */
-  length: number;
-  /** Layer of the dependent. */
+  name: string;
+  /** The name, shortened with an ellipsis when it does not fit the card. */
+  label: string;
+  type: string;
+  health: Health;
+  /** Centre of the card. */
+  x: number;
+  y: number;
   depth: number;
-  /** When a failure travels back along this line: the hop of the component it reaches; null if it does not. */
-  ripple: number | null;
+  /** 0 for a degraded or unhealthy component, n for one n hops from one against the arrows (potentially affected), else null. */
+  hop: number | null;
+  /** When the card appears, when its health shows and when it lights up (problems and potentially affected only). */
+  at: { show: number; health: number; lit: number | null };
 };
-export type MiniMap = {
+
+type Route = { d: string; head: string; length: number };
+
+/** A dependency on the map, and the way a failure would take back along it. */
+export type MapLine = Route & {
+  id: string;
+  at: { draw: number; duration: number };
+  /** Drawn from the component that fails up to the one that depends on it, when the failure climbs; null if it does not. */
+  climb: (Route & { at: number }) | null;
+};
+
+/** One layer of the map, for narrow boxes: its cards, and the link from the layer above. */
+export type MapRow = { cards: MapCard[]; show: number; link: { draw: number; climb: number | null } | null };
+
+export type LiveMap = {
   width: number;
   height: number;
-  pill: { width: number; height: number };
-  font: number;
-  nodes: MiniMapNode[];
-  edges: MiniMapEdge[];
-  rows: Array<Array<{ id: string; name: string; health: TopologyNode["health"]; depth: number; hop: number | null }>>;
-  /** Components that depend, directly or not, on a degraded or unhealthy one. */
+  card: { width: number; height: number };
+  cards: MapCard[];
+  lines: MapLine[];
+  rows: MapRow[];
+  /** When the health shows, when problems light up, and when the last potentially affected component does. */
+  at: { health: number; problems: number | null; affected: number | null };
+  /** Degraded or unhealthy components, and the components that depend on them, directly or not. */
+  problems: number;
   affected: number;
-  /** Hops from a problem to the furthest of them (0 when none). */
-  reach: number;
 };
 
-const MAP_FONT = 11.5;
-/** A generous average glyph width of Geist, as a share of the font size, so labels always fit their pill. */
-const MAP_CHAR = 0.55;
-/** Left of the label: padding and the status glyph. Right of it: padding. */
-const MAP_LABEL_LEFT = 28;
-const MAP_LABEL_RIGHT = 16;
-const MAP_PAD = 16;
-/** The picture never shrinks below this, so a map with one or two components is not blown up. */
-const MAP_MIN = { width: 440, height: 200 };
+const CARD = { width: 216, height: 50 };
+const GAP = { x: 14, y: 38 };
+const PAD = { x: 16, y: 16 };
+/** Left of the name: padding, the type icon and a gap. Right of it: padding. */
+const TEXT = { left: 52, right: 12 };
+/** A generous width of Geist at 13 px semibold, so a name always fits its card. */
+const CHAR = 13 * 0.58;
+/** Connectors leave a card straight down this far before they branch, with corners of this radius. */
+const TRUNK = 15;
+const CORNER = 6;
+/** Length of a rounded corner (a quadratic curve) of radius r is about 1.62 r; a little more keeps dashes whole. */
+const BEND = 1.65;
+/** The story's rhythm, in milliseconds. */
+const STORY = {
+  start: 300,
+  /** From a layer appearing to the arrows towards the next one starting to grow. */
+  lineDelay: 450,
+  draw: 520,
+  drawBent: 720,
+  /** From the last layer appearing to the health showing, and its stagger per layer. */
+  settle: 700,
+  wave: 70,
+  /** From the health showing to the problems lighting up, and from there to the first red arrow. */
+  problems: 1300,
+  firstClimb: 1000,
+  climb: 700,
+  /** From a component lighting up to the next red arrow. */
+  nextClimb: 600,
+};
 
 const r1 = (value: number) => Math.round(value * 10) / 10;
-const clamp = (value: number, limit: number) => Math.max(-limit, Math.min(limit, value));
-const isProblem = (health: TopologyNode["health"]) => health === "Degraded" || health === "Unhealthy";
+const isProblem = (health: Health) => health === "Degraded" || health === "Unhealthy";
 
 /** Distance from the nearest degraded or unhealthy component, against the arrows (breadth first, safe on cycles). */
 export function failureHops(topology: Pick<Topology, "nodes" | "edges">): Map<string, number> {
@@ -259,98 +300,195 @@ export function failureHops(topology: Pick<Topology, "nodes" | "edges">): Map<st
   return hops;
 }
 
-export function miniMap(topology: Topology): MiniMap {
+type Point = { x: number; y: number };
+type Routes = { forward: Route; back: Route; bent: boolean };
+
+/** Down from `a` to a lower layer `b`: straight when they line up, else down a short trunk, across and down again. */
+function downRoute(a: Point, b: Point): Routes {
+  const half = CARD.height / 2;
+  const bottom = r1(a.y + half);
+  const top = r1(b.y - half);
+  const tip = r1(top - 1);
+  const end = r1(tip - 6);
+  const head = (x: number) => `M${x} ${tip}L${r1(x - 4)} ${r1(tip - 7)}H${r1(x + 4)}Z`;
+  const backHead = (x: number) => `M${x} ${r1(bottom + 1)}L${r1(x - 4.5)} ${r1(bottom + 9)}H${r1(x + 4.5)}Z`;
+  const dx = b.x - a.x;
+  if (Math.abs(dx) < 24) {
+    return {
+      bent: false,
+      forward: { d: `M${b.x} ${bottom}V${end}`, head: head(b.x), length: Math.ceil(end - bottom) + 1 },
+      back: { d: `M${b.x} ${r1(top - 0.5)}V${r1(bottom + 7)}`, head: backHead(b.x), length: Math.ceil(top - bottom - 7) + 1 },
+    };
+  }
+  const dir = Math.sign(dx);
+  const join = r1(bottom + TRUNK);
+  const r = Math.min(CORNER, Math.abs(dx) / 2, end - join);
+  const across = Math.abs(dx) - 2 * r + 2 * BEND * r;
+  return {
+    bent: true,
+    forward: {
+      d: `M${a.x} ${bottom}V${r1(join - r)}Q${a.x} ${join} ${r1(a.x + dir * r)} ${join}H${r1(b.x - dir * r)}Q${b.x} ${join} ${b.x} ${r1(join + r)}V${end}`,
+      head: head(b.x),
+      length: Math.ceil(join - r - bottom + across + end - join - r) + 1,
+    },
+    back: {
+      d: `M${b.x} ${r1(top - 0.5)}V${r1(join + r)}Q${b.x} ${join} ${r1(b.x - dir * r)} ${join}H${r1(a.x + dir * r)}Q${a.x} ${join} ${a.x} ${r1(join - r)}V${r1(bottom + 7)}`,
+      head: backHead(a.x),
+      length: Math.ceil(top - 0.5 - join - r + across + join - r - bottom - 7) + 1,
+    },
+  };
+}
+
+/** To a component in the same layer: a low bridge over the top. */
+function bridgeRoute(a: Point, b: Point): Routes {
+  const top = r1(a.y - CARD.height / 2);
+  const lift = r1(top - 14);
+  const dir = Math.sign(b.x - a.x) || 1;
+  const sx = r1(a.x + dir * 30);
+  const ex = r1(b.x - dir * 30);
+  const r = Math.min(CORNER, Math.abs(ex - sx) / 2);
+  const length = Math.ceil(top - lift + Math.abs(ex - sx) + top - 7 - lift) + 1;
+  const head = (x: number) => `M${x} ${r1(top - 1)}L${r1(x - 4)} ${r1(top - 8)}H${r1(x + 4)}Z`;
+  const path = (from: number, to: number, way: number) =>
+    `M${from} ${top}V${r1(lift + r)}Q${from} ${lift} ${r1(from + way * r)} ${lift}H${r1(to - way * r)}Q${to} ${lift} ${to} ${r1(lift + r)}V${r1(top - 7)}`;
+  return { bent: true, forward: { d: path(sx, ex, dir), head: head(ex), length }, back: { d: path(ex, sx, -dir), head: head(sx), length } };
+}
+
+/** To a component in a layer above (the dependency closes a cycle): around the right-hand side. */
+function sideRoute(a: Point, b: Point): Routes {
+  const half = CARD.width / 2;
+  const out = r1(Math.max(a.x, b.x) + half + 18);
+  const r = Math.min(CORNER, Math.abs(a.y - b.y) / 2);
+  const length = Math.ceil(out - a.x - half + Math.abs(a.y - b.y) + out - b.x - half) + 1;
+  const head = (p: Point) => `M${r1(p.x + half + 1)} ${p.y}L${r1(p.x + half + 8)} ${r1(p.y - 4)}V${r1(p.y + 4)}Z`;
+  const path = (from: Point, to: Point) => {
+    const way = Math.sign(to.y - from.y);
+    return `M${r1(from.x + half)} ${from.y}H${r1(out - r)}Q${out} ${from.y} ${out} ${r1(from.y + way * r)}V${r1(to.y - way * r)}Q${out} ${to.y} ${r1(out - r)} ${to.y}H${r1(to.x + half + 7)}`;
+  };
+  return { bent: true, forward: { d: path(a, b), head: head(b), length }, back: { d: path(b, a), head: head(a), length } };
+}
+
+export function liveMap(topology: Topology): LiveMap {
+  const empty: LiveMap = { width: 0, height: 0, card: CARD, cards: [], lines: [], rows: [], at: { health: 0, problems: null, affected: null }, problems: 0, affected: 0 };
+  if (topology.nodes.length === 0) return empty;
   const placements = layoutTopology(topology);
   const hops = failureHops(topology);
-  const charWidth = MAP_FONT * MAP_CHAR;
-  const longest = Math.max(0, ...topology.nodes.map((node) => node.name.length));
-  const pill = {
-    width: Math.ceil(Math.min(184, Math.max(112, longest * charWidth + MAP_LABEL_LEFT + MAP_LABEL_RIGHT))),
-    height: Math.round(MAP_FONT * 2.5),
+  // The map's own columns: each layer's slots rounded to half a card and still a card apart, so a component
+  // with a single dependent sits right under it and its connector runs straight.
+  const layers = new Map<number, Array<{ id: string; slot: number }>>();
+  for (const [id, p] of placements) layers.set(p.depth, [...(layers.get(p.depth) ?? []), { id, slot: p.slot }]);
+  const slots = new Map<string, number>();
+  for (const members of layers.values()) {
+    let previous = -Infinity;
+    for (const member of [...members].sort((p, q) => p.slot - q.slot)) {
+      previous = Math.max(Math.round(member.slot * 2) / 2, previous + 1);
+      slots.set(member.id, previous);
+    }
+  }
+  const minSlot = Math.min(...slots.values());
+  const maxSlot = Math.max(...slots.values());
+  const maxDepth = Math.max(...[...placements.values()].map((p) => p.depth));
+  const stepX = CARD.width + GAP.x;
+  const stepY = CARD.height + GAP.y;
+  const place = (id: string) => ({ depth: placements.get(id)?.depth ?? 0, slot: slots.get(id) ?? minSlot });
+  const depthOf = (id: string) => place(id).depth;
+  const point = (id: string): Point => {
+    const p = place(id);
+    return { x: r1(PAD.x + CARD.width / 2 + (p.slot - minSlot) * stepX), y: r1(PAD.y + CARD.height / 2 + p.depth * stepY) };
   };
-  const fits = Math.floor((pill.width - MAP_LABEL_LEFT - MAP_LABEL_RIGHT) / charWidth + 0.01);
-  const label = (name: string) => (name.length <= fits ? name : `${name.slice(0, Math.max(1, fits - 1)).trimEnd()}…`);
-  const stepX = pill.width + 24;
-  const stepY = pill.height + 38;
 
-  const places = [...placements.values()];
-  const minSlot = Math.min(...places.map((p) => p.slot));
-  const maxSlot = Math.max(...places.map((p) => p.slot));
-  const maxDepth = Math.max(...places.map((p) => p.depth));
-  const contentWidth = MAP_PAD * 2 + pill.width + (maxSlot - minSlot) * stepX;
-  const contentHeight = MAP_PAD * 2 + pill.height + maxDepth * stepY;
-  const width = Math.max(MAP_MIN.width, contentWidth);
-  const height = Math.max(MAP_MIN.height, contentHeight);
-  const offsetX = (width - contentWidth) / 2 + MAP_PAD + pill.width / 2;
-  const offsetY = (height - contentHeight) / 2 + MAP_PAD + pill.height / 2;
-  const at = (id: string) => {
-    const place = placements.get(id) ?? { depth: 0, slot: minSlot };
-    return { x: r1(offsetX + (place.slot - minSlot) * stepX), y: r1(offsetY + place.depth * stepY) };
-  };
-  const depthOf = (id: string) => placements.get(id)?.depth ?? 0;
+  const routes = topology.edges.flatMap((edge) => {
+    if (!placements.has(edge.source) || !placements.has(edge.target) || edge.source === edge.target) return [];
+    const [from, to] = [depthOf(edge.source), depthOf(edge.target)];
+    const [a, b] = [point(edge.source), point(edge.target)];
+    const route = to > from ? downRoute(a, b) : to === from ? bridgeRoute(a, b) : sideRoute(a, b);
+    return [{ edge, down: to > from, ...route }];
+  });
+
+  // 1. Layer by layer: the arrows to a layer grow, then its cards appear. Arrows sideways or up come last.
+  const show: number[] = [STORY.start];
+  const drawAt: Array<number | null> = [null];
+  for (let depth = 1; depth <= maxDepth; depth++) {
+    const incoming = routes.filter((route) => route.down && depthOf(route.edge.target) === depth);
+    const start = show[depth - 1] + STORY.lineDelay;
+    drawAt.push(incoming.length ? start : null);
+    show.push(incoming.length ? start + Math.max(...incoming.map((route) => (route.bent ? STORY.drawBent : STORY.draw))) - 20 : start + 100);
+  }
+  const lateAt = show[maxDepth] + STORY.lineDelay;
+  const built = routes.some((route) => !route.down) ? lateAt + STORY.drawBent : show[maxDepth];
+
+  // 2. Health, 3. problems, 4. a red arrow per hop.
+  const healthAt = built + STORY.settle;
+  const problems = topology.nodes.filter((node) => isProblem(node.health)).length;
+  const problemsAt = problems > 0 ? healthAt + STORY.problems : null;
+  const reach = Math.max(0, ...hops.values());
+  const climbAt: number[] = [];
+  const litAt: number[] = [];
+  if (problemsAt !== null) {
+    litAt[0] = problemsAt;
+    for (let hop = 1; hop <= reach; hop++) {
+      climbAt[hop] = hop === 1 ? problemsAt + STORY.firstClimb : litAt[hop - 1] + STORY.nextClimb;
+      litAt[hop] = climbAt[hop] + STORY.climb;
+    }
+  }
   const rippleOf = (source: string, target: string) => {
     const from = hops.get(target);
     const to = hops.get(source);
     return from !== undefined && to !== undefined && to === from + 1 ? to : null;
   };
 
-  const halfW = pill.width / 2;
-  const halfH = pill.height / 2;
-  const edges = topology.edges.flatMap((edge): MiniMapEdge[] => {
-    if (!placements.has(edge.source) || !placements.has(edge.target) || edge.source === edge.target) return [];
-    const a = at(edge.source);
-    const b = at(edge.target);
-    const common = { id: edge.id, depth: depthOf(edge.source), ripple: rippleOf(edge.source, edge.target) };
-    if (b.y !== a.y) {
-      // Down to a lower layer (the usual case), or back up for an edge that closes a cycle. Lines leave
-      // and reach a pill a little towards each other, so a fan of dependencies spreads instead of bunching.
-      const dir = b.y > a.y ? 1 : -1;
-      const dx = b.x - a.x;
-      const sx = r1(a.x + clamp(dx * 0.3, halfW * 0.55));
-      const tx = r1(b.x + clamp(-dx * 0.12, halfW * 0.3));
-      const sy = r1(a.y + dir * halfH);
-      const tip = r1(b.y - dir * (halfH + 1));
-      const ey = r1(tip - dir * 6);
-      const bend = r1(Math.max(10, Math.abs(ey - sy) * 0.5));
-      const c1 = r1(sy + dir * bend);
-      const c2 = r1(ey - dir * bend);
-      return [{
-        ...common,
-        d: `M${sx} ${sy}C${sx} ${c1} ${tx} ${c2} ${tx} ${ey}`,
-        back: `M${tx} ${ey}C${tx} ${c2} ${sx} ${c1} ${sx} ${sy}`,
-        arrow: `M${tx} ${tip}L${r1(tx - 4)} ${r1(tip - dir * 7)}L${r1(tx + 4)} ${r1(tip - dir * 7)}Z`,
-        length: Math.round(Math.hypot(tx - sx, ey - sy) * 1.2 + 10),
-      }];
-    }
-    // Same layer: a low arc from side to side.
-    const dir = b.x > a.x ? 1 : -1;
-    const sx = r1(a.x + dir * halfW);
-    const tip = r1(b.x - dir * (halfW + 1));
-    const ex = r1(tip - dir * 6);
-    const lift = r1(a.y - halfH - 10);
-    return [{
-      ...common,
-      d: `M${sx} ${a.y}C${r1(sx + dir * 20)} ${lift} ${r1(ex - dir * 20)} ${lift} ${ex} ${b.y}`,
-      back: `M${ex} ${b.y}C${r1(ex - dir * 20)} ${lift} ${r1(sx + dir * 20)} ${lift} ${sx} ${a.y}`,
-      arrow: `M${tip} ${b.y}L${r1(tip - dir * 7)} ${r1(b.y - 4)}L${r1(tip - dir * 7)} ${r1(b.y + 4)}Z`,
-      length: Math.round(Math.abs(ex - sx) * 1.3 + 30),
-    }];
+  const lines: MapLine[] = routes.map(({ edge, down, bent, forward, back }) => {
+    const hop = rippleOf(edge.source, edge.target);
+    const climb = hop !== null ? climbAt[hop] : undefined;
+    return {
+      id: edge.id,
+      ...forward,
+      at: { draw: down ? (drawAt[depthOf(edge.target)] ?? show[depthOf(edge.target)]) : lateAt, duration: bent ? STORY.drawBent : STORY.draw },
+      climb: climb !== undefined ? { ...back, at: climb } : null,
+    };
   });
 
-  const hopOf = (id: string) => hops.get(id) ?? null;
-  const nodes = topology.nodes.map((node) => ({
-    id: node.id, name: node.name, label: label(node.name), health: node.health, ...at(node.id), depth: depthOf(node.id), hop: hopOf(node.id),
-  }));
-  const byDepth = new Map<number, Array<{ id: string; name: string; health: TopologyNode["health"]; slot: number }>>();
-  for (const node of topology.nodes) {
-    const place = placements.get(node.id) ?? { depth: 0, slot: 0 };
-    byDepth.set(place.depth, [...(byDepth.get(place.depth) ?? []), { id: node.id, name: node.name, health: node.health, slot: place.slot }]);
-  }
-  const rows = [...byDepth.keys()].sort((x, y) => x - y)
-    .map((depth) => (byDepth.get(depth) ?? []).sort((x, y) => x.slot - y.slot)
-      .map(({ id, name, health }) => ({ id, name, health, depth, hop: hopOf(id) })));
-  const affected = [...hops.values()].filter((hop) => hop > 0).length;
-  const reach = Math.max(0, ...hops.values());
+  const fits = Math.floor((CARD.width - TEXT.left - TEXT.right) / CHAR + 0.01);
+  const label = (name: string) => (name.length <= fits ? name : `${name.slice(0, Math.max(1, fits - 1)).trimEnd()}…`);
+  const cards: MapCard[] = topology.nodes.map((node) => {
+    const depth = depthOf(node.id);
+    const hop = hops.get(node.id) ?? null;
+    return {
+      id: node.id, name: node.name, label: label(node.name), type: node.type, health: node.health,
+      ...point(node.id), depth, hop,
+      at: {
+        show: show[depth],
+        health: hop === 0 && problemsAt !== null ? problemsAt : healthAt + depth * STORY.wave,
+        lit: hop !== null ? (litAt[hop] ?? null) : null,
+      },
+    };
+  });
 
-  return { width, height, pill, font: MAP_FONT, nodes, edges, rows, affected, reach };
+  const rows: MapRow[] = [];
+  for (let depth = 0; depth <= maxDepth; depth++) {
+    const members = cards.filter((card) => card.depth === depth).sort((p, q) => place(p.id).slot - place(q.id).slot);
+    if (members.length === 0) continue;
+    // The link from the layer above turns red when a failure climbs through it.
+    const climbs = routes.flatMap((route, index) => {
+      const at = lines[index].climb?.at;
+      return at !== undefined && route.down && depthOf(route.edge.source) < depth && depth <= depthOf(route.edge.target) ? [at] : [];
+    });
+    rows.push({
+      cards: members,
+      show: show[depth],
+      link: depth === 0 ? null : { draw: drawAt[depth] ?? show[depth] - 400, climb: climbs.length ? Math.min(...climbs) : null },
+    });
+  }
+
+  return {
+    width: Math.ceil(PAD.x * 2 + CARD.width + (maxSlot - minSlot) * stepX),
+    height: Math.ceil(PAD.y * 2 + CARD.height + maxDepth * stepY),
+    card: CARD,
+    cards,
+    lines,
+    rows,
+    at: { health: healthAt, problems: problemsAt, affected: reach > 0 ? (litAt[reach] ?? null) : null },
+    problems,
+    affected: [...hops.values()].filter((hop) => hop > 0).length,
+  };
 }

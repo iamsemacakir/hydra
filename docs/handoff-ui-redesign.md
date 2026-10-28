@@ -17,14 +17,14 @@ Sema asked for three things, all in the Hydra design language of the landing pag
 | Tokens, fonts, app shell (header with theme switch, avatar, sign out) | Done |
 | Project frame: breadcrumb and tab bar in `app/projects/[projectId]/layout.tsx` (stays put between tabs) | Done |
 | `/projects`, `/projects/new`, `/projects/import` | Done |
-| Overview (health summary, live map on a dark stage, stats, feeds) | Done |
+| Overview (health summary, live map, stats, feeds) | Done |
 | Topology (new layout, curved edges with arrows, legend, detail panel, impact view) | Done |
 | Boards (board, backlog, drawer), components, environments, compare, events, deployments, settings, integrations | Done |
 | Keycloak login theme | Done: `infra/keycloak/themes/hydra`, see `docs/authentication.md` ("Login theme") |
 | Check of every page in Light, Dark and at phone width, with fixes | Done (commit "polish the signed-in pages") |
 | Environments page: each environment's recorded health | Done |
 | Docs: design-system.md, landing.md, topology-v2.md, README | Done |
-| `npm run typecheck`, `npm run lint`, `npm run build` | Done: all three pass on Sema's machine (28 October 2026, after the live map commit) |
+| `npm run typecheck`, `npm run lint`, `npm run build` | All three passed on Sema's machine on 28 October 2026, before the live map was redone as design В; run them again |
 
 ## What changed and where
 
@@ -37,14 +37,14 @@ Sema asked for three things, all in the Hydra design language of the landing pag
 - `src/components/ProjectNav.tsx`: pill tab bar with icons, grouped (Project, Plan, Model, Operate, Connect, Admin). The `active` prop is now a tab key from `lib/projectNav.ts`.
 - `src/lib/status.ts` (new): how a status looks (tone + glyph + word) for health, severity, deployments, work states. In the app, **Degraded is amber** (`--lp-warn`), Unhealthy red, Unknown a hollow circle; "potentially affected" stays red with a dashed outline, as on the landing page.
 - `src/lib/format.ts` (new): dates, initials, metrics. `src/lib/projectNav.ts` (new): the tabs and which one is active.
-- `src/lib/graph.ts`: new `layoutTopology` (every arrow points down, cycles are safe, children sit under their parents), `mapTopology` now draws curved edges with arrowheads, encodes the dependency source as solid / dashed / dotted lines, highlights the impact path, and gives nodes an initial size so the minimap works (it was always empty before). `miniMap` makes the overview's map preview.
+- `src/lib/graph.ts`: new `layoutTopology` (every arrow points down, cycles are safe, children sit under their parents), `mapTopology` now draws curved edges with arrowheads, encodes the dependency source as solid / dashed / dotted lines, highlights the impact path, and gives nodes an initial size so the minimap works (it was always empty before). `liveMap` makes the overview's live map.
 - `src/components/TopologyWorkspace.tsx`: rebuilt UI; same data flow and SSE handling. New: clicking the empty canvas clears the selection, a close button on the detail panel, related components are clickable, and `?componentId=` preselects a component (used by the overview's attention list).
 - `src/components/landing/Icon.tsx`: more Lucide icons. `Brand.tsx`: optional `href`.
-- Later: `src/components/app/HealthBar.tsx` (`HealthBar`, `HealthLegend`, shared by the overview and the environment cards); environment cards with recorded health; `.stack-table` (tables become cards on a phone, cells carry `data-label`); `ProjectNav` scrolls the current tab into view; `infra/keycloak/themes/hydra` (Keycloak login theme); the overview's live map on a dark stage with calm motion (`MapPreview`, `miniMap` and `failureHops` in `lib/graph.ts`, the `--lp-stage-*` tokens).
+- Later: `src/components/app/HealthBar.tsx` (`HealthBar`, `HealthLegend`, shared by the overview and the environment cards); environment cards with recorded health; `.stack-table` (tables become cards on a phone, cells carry `data-label`); `ProjectNav` scrolls the current tab into view; `infra/keycloak/themes/hydra` (Keycloak login theme); the overview's live map, design В of three options Sema chose from (`MapPreview`, `liveMap` and `failureHops` in `lib/graph.ts`, `lib/componentTypes.ts`).
 
 ## How it was checked
 
-- On Sema's machine with the repository's own toolchain: `npm run typecheck`, `npm run lint` and `npm run build` pass.
+- On Sema's machine with the repository's own toolchain: `npm run typecheck`, `npm run lint` and `npm run build` passed before the live map was redone as design В. The new map passed the strict TypeScript check here.
 - A browser harness (esbuild + Playwright, React Flow 12.11.6 and zustand 4.5.7 built from their GitHub sources) rendered every page with sample data shaped like `DemoSeed.cs`, in Light and Dark at 1440 and 390 px, plus 768 and 375 px for the main pages, and the empty, viewer and unhealthy variants. No console errors and no horizontal scroll. The overview's live map was also checked frame by frame, with its animations stopped at set times through the Web Animations API, and with reduced motion.
 - Strict TypeScript (TypeScript 6.0, the closest version available offline; the repository uses 5.9) over all of `frontend/web/src` with the real React types from DefinitelyTyped and stand-ins for Next.js and Auth.js: no errors and no unused code in Hydra files.
 - The Keycloak theme ran on a real Keycloak 26.6.3 with the realm imported from the same folder layout as `compose.yaml`: sign-in, wrong password, password update, authenticator setup, forgot password, sign-out and error pages, Light, Dark and Auto, 1440 and 390 px.
@@ -52,9 +52,10 @@ Sema asked for three things, all in the Hydra design language of the landing pag
 
 ## Next steps, in order
 
-1. Look at the pages once against the real API (Docker) in both themes.
-2. Switch the existing local realm to the login theme: Keycloak admin console, realm `devops`, Realm settings, Themes, Login theme = `hydra`, Save.
-3. When both are done, delete this note.
+1. Run `npm run typecheck`, `npm run lint` and `npm run build` again (the live map changed).
+2. Look at the pages once against the real API (Docker) in both themes.
+3. Switch the existing local realm to the login theme: Keycloak admin console, realm `devops`, Realm settings, Themes, Login theme = `hydra`, Save.
+4. When all of that is done, delete this note.
 
 ## Working with Sema
 

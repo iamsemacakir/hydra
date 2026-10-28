@@ -5,15 +5,12 @@ import { useParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { Notice } from "@/components/app/Notice";
 import { PageHead } from "@/components/app/PageHead";
-import { Icon, type IconName } from "@/components/landing/Icon";
+import { Icon } from "@/components/landing/Icon";
 import { Component, Dependency, getJson, postJson, Project, ProjectMember, sendJson } from "@/lib/api";
+import { COMPONENT_TYPE_ICONS } from "@/lib/componentTypes";
 
 const componentTypes = ["Frontend", "Service", "Database", "MessageBroker", "Cache", "ExternalService", "Gateway", "Worker", "Other"];
 const dependencyTypes = ["Http", "Database", "Messaging", "Cache", "Infrastructure", "External", "Other"];
-const TYPE_ICONS: Record<string, IconName> = {
-  Frontend: "layout-dashboard", Gateway: "network", Service: "box", Worker: "settings", Database: "layers",
-  MessageBroker: "activity", Cache: "zap", ExternalService: "external-link",
-};
 
 export default function ComponentsPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -79,7 +76,7 @@ export default function ComponentsPage() {
       <div className="two-col">
         <section className="panel fade-in"><div className="panel-head"><h2>Components <span className="muted">{components.length || ""}</span></h2></div>
           <ul className="component-list">{components.map(component => <li className="component-row" key={component.id}>
-            <span className="component-icon" aria-hidden="true"><Icon name={TYPE_ICONS[component.type] ?? "box"} size={17} /></span>
+            <span className="component-icon" aria-hidden="true"><Icon name={COMPONENT_TYPE_ICONS[component.type] ?? "box"} size={17} /></span>
             <div><strong>{component.name}</strong>
               <div className="component-meta"><span className="chip">{component.type}</span>{component.origin !== "Manual" && <span className="chip">{component.origin}</span>}{component.discoveryStatus && component.discoveryStatus !== "Active" && <span className="chip" data-tone="warn">{component.discoveryStatus}</span>}{(component.isNameOverridden || component.isTypeOverridden) && <span className="chip" data-tone="accent">Manual override</span>}</div>
               {(component.owner || component.description) && <small>{[component.owner, component.description].filter(Boolean).join(" · ")}</small>}
