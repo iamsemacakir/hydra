@@ -24,6 +24,9 @@ Sema asked for three things, all in the Hydra design language of the landing pag
 | Check of every page in Light, Dark and at phone width, with fixes | Done (commit "polish the signed-in pages") |
 | Environments page: each environment's recorded health | Done |
 | Docs: design-system.md, landing.md, topology-v2.md, README | Done |
+| Every page state: empty, loading, error, offline, slow network, no results, permission denied, session expired, form validation, success | Done (31 October 2026), see `docs/design-system.md` ("Page states") |
+| Feeling fast: skeletons, a loading bar that sprints at the end, prefetch on project cards, instant board moves and saves, visible progress | Done (31 October 2026) |
+| RUP documents: Creative Design Brief and Design Comps / User-Interface Prototype, with screenshots | Done: `docs/rup/` |
 | `npm run typecheck`, `npm run lint`, `npm run build` | All three passed on Sema's machine on 28 October 2026, before the live map was redone as design В; run them again |
 
 ## What changed and where
@@ -40,6 +43,7 @@ Sema asked for three things, all in the Hydra design language of the landing pag
 - `src/lib/graph.ts`: new `layoutTopology` (every arrow points down, cycles are safe, children sit under their parents), `mapTopology` now draws curved edges with arrowheads, encodes the dependency source as solid / dashed / dotted lines, highlights the impact path, and gives nodes an initial size so the minimap works (it was always empty before). `liveMap` makes the overview's live map.
 - `src/components/TopologyWorkspace.tsx`: rebuilt UI; same data flow and SSE handling. New: clicking the empty canvas clears the selection, a close button on the detail panel, related components are clickable, and `?componentId=` preselects a component (used by the overview's attention list).
 - `src/components/landing/Icon.tsx`: more Lucide icons. `Brand.tsx`: optional `href`.
+- Page states (31 October 2026): `src/lib/api.ts` now throws `ApiError` with a kind (offline, network, unauthorized, forbidden, notFound, conflict, validation, server), counts requests for the loading bar, sends a 401 to `/signin?reason=expired&callbackUrl=…`, and can prefetch. New: `lib/errors.ts` (what to say for each kind), `lib/validation.ts` (field messages), `lib/drafts.ts`, `lib/search.ts` (`closestMatch`), `lib/prefetch.ts`; `components/app/` `Toaster`, `NetworkStatus` (`LoadingBar`, `ConnectionStatus`), `NoResults`, `ProjectContext` (`AccessDenied`, `ViewOnly`), `FormErrors`, `Skeleton`, `ScanWork`; `ErrorNotice` in `Notice.tsx`. Every page uses them.
 - Later: `src/components/app/HealthBar.tsx` (`HealthBar`, `HealthLegend`, shared by the overview and the environment cards); environment cards with recorded health; `.stack-table` (tables become cards on a phone, cells carry `data-label`); `ProjectNav` scrolls the current tab into view; `infra/keycloak/themes/hydra` (Keycloak login theme); the overview's live map, design В of three options Sema chose from (`MapPreview`, `liveMap` and `failureHops` in `lib/graph.ts`, `lib/componentTypes.ts`). The large example project Northstar Marketplace, created from the Projects page in demo mode through the API (`src/lib/demo`, `ExampleProject`, see `docs/example-project.md`); for large systems the live map tells its story layer by layer, and the topology page folds long provenance lists.
 
 ## How it was checked
@@ -52,8 +56,8 @@ Sema asked for three things, all in the Hydra design language of the landing pag
 
 ## Next steps, in order
 
-1. Run `npm run typecheck`, `npm run lint` and `npm run build` again (the live map and the example project are new).
-2. Look at the pages once against the real API (Docker) in both themes, also with the large example project (Projects, Create the example).
+1. Run `npm run typecheck`, `npm run lint` and `npm run build` again (the live map, the example project and the page states are new; the strict TypeScript check passed in the sandbox on 31 October 2026, lint and build need the repository's own toolchain).
+2. Look at the pages once against the real API (Docker) in both themes, also with the large example project (Projects, Create the example). Try the states for real: stop the backend container (error), turn off the network in the browser's developer tools (offline), throttle it to "Slow 3G" (slow network), and type a wrong name into a search.
 3. Switch the existing local realm to the login theme: Keycloak admin console, realm `devops`, Realm settings, Themes, Login theme = `hydra`, Save.
 4. When all of that is done, delete this note.
 

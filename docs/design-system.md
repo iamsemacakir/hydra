@@ -2,6 +2,8 @@
 
 Hydra has one visual language for every page people see: the public landing page (`/`), the sign-in page (`/signin`), the signed-in app (`/projects` and everything below it) and the Keycloak login pages (the `hydra` login theme). This document is the reference for building or changing any of them.
 
+The same language is described for readers outside the code in two RUP documents: the [Creative Design Brief](rup/creative-design-brief.md) (the style) and the [Design Comps / User-Interface Prototype](rup/design-comps.md) (every screen and its states, as screenshots). Change them together with this document.
+
 | Where | Code |
 | --- | --- |
 | Tokens (Light and Dark) | `frontend/web/src/app/globals.css` |
@@ -105,7 +107,7 @@ Components are in `src/components/app/`, classes in `src/app/projects/app.css`. 
 | Health bar | `HealthBar`, `HealthLegend` | The share of each health state in an environment, with its counts. Overview and environment cards. |
 | Number tile | `Stat` (`.stats`) | A number with its label and an icon tinted when it needs attention. Five in a row from 721 px, two per row on a phone. |
 | Live map | `MapPreview`; `liveMap` and `failureHops` in `lib/graph.ts`; type icons in `lib/componentTypes.ts` | The environment's topology on the overview: a card per component (type icon, name, one status word) on the layered layout, connectors that branch like a tree, a line under the map that says what it shows, a Replay button, and the whole box opens the topology page. It tells its story once, when it comes into view: the components appear layer by layer as the arrows to them grow, their health shows, degraded and unhealthy components light up, and a red arrow climbs from each to what depends on it, which lights up as potentially affected, one hop at a time. A box narrower than 520 px, and a system whose picture would need more than three columns of cards, show the same story layer by layer as rows of chips. |
-| Notice | `Notice` | An error to act on (announced at once), information, or success. |
+| Notice | `Notice`, `ErrorNotice` | An error to act on (announced at once), information, or success, with an optional action on the right. `ErrorNotice` turns any failure into "what went wrong" and "how to fix it" (`lib/errors.ts`) and adds "Try again" when trying again can help. |
 | Example project | `ExampleProject`; `lib/demo` | Demo mode only, under the project cards: offers the large example project and shows each step while it is created through the API. See [example-project.md](example-project.md). |
 | Feed | `.feed`, `.feed-item` | Events, deployments, activity: a pill or version on the left, the text on the right; stacked on a phone. |
 | Chip, version | `.chip` (`data-tone` for a tint), `.version` | Short facts (type, visibility, source) and version numbers in Geist Mono. |
@@ -114,7 +116,16 @@ Components are in `src/components/app/`, classes in `src/app/projects/app.css`. 
 | Forms | `.form-panel`, `.form-row`, `.inline-form`, `.form-actions` | Labelled fields; rows of fields take the full width on a phone. |
 | Cards | `.project-card`, `.env-card`, `.work-card` | A project in the list, an environment with its recorded health, a work item on the board. |
 | Graph node | `.graph-node` in `TopologyWorkspace` | A component on the topology: type, version, name, health pill, impact pill. |
-| Empty state | `.tile.empty-state` | What is missing and the one action that fills it. |
+| Empty state | `.tile.empty-state`, `.graph-empty` | What is missing and the one action that fills it. On the topology map, `.graph-empty` gives the icon its own tile. |
+| Toast | `Toaster` (in the app layout), `useToast()` | Confirms a success and links to the next step. Up to three at a time, 6 s each, paused while hovered or focused, announced politely. `tone: "info"` for demo actions, `"error"` for a failed one-off action. |
+| Loading bar | `LoadingBar` | The thin bar at the top of the window: it appears after 150 ms of API work, crawls, and sprints to the end when the work is done. Counts every request except those sent with `quiet` (polls). |
+| Connection notice | `ConnectionStatus` | "You're offline", "Back online" (with Refresh, for 10 s) and, after 3 s of waiting, "Still loading…" with the seconds. A pill under the header, full width on phones. |
+| Skeleton | `SkeletonBar`, `SkeletonFeed`, `SkeletonRows`, `SkeletonGraph` | Placeholders in the shape of the content while it loads. Never shown together with an error: when the first load fails, the page shows only the error. |
+| No results | `NoResults` | A search or filter that found nothing: says so, offers the closest name (`closestMatch` in `lib/search.ts`) and a way back to everything. On the map it floats over the graph. |
+| Access | `ProjectContext`, `useProjectAccess`, `ViewOnly`, `AccessDenied` | The project frame loads the project and your role once. `AccessDenied` replaces the pages when you may not open the project (403) or it does not exist (404), with a way back. `ViewOnly` is a chip that explains why a form is missing. |
+| Form errors | `useFormErrors`, `FieldError` (`lib/validation.ts`) | Forms set `noValidate`; the browser still checks the constraints on each field, and the message appears under the field. Leaving a field shows its mistake; empty required fields are flagged after the first submit; the focus moves to the first mistake. API validation errors and conflicts (`handleApiError(error, fields, conflictField)`) land on their field. |
+| Drafts | `lib/drafts.ts` | Forms that take a while to fill (new project, work item) save what you type in `sessionStorage` (`hydra:draft:*`, 24 hours), so an expired session or a reload loses nothing. Offer it back with a `Notice` ("Your draft is back"). |
+| Work in progress | `ScanWork`, the "Analyzing…" button | Long work says what it is doing and counts its seconds. |
 
 ### Status language
 
@@ -143,6 +154,25 @@ In the signed-in app (`src/lib/status.ts`), degraded and unhealthy must be told 
 
 Every status shows its word next to the shape; the colour only reinforces it. An arrow from A to B always means A depends on B; a failure travels against the arrows.
 
+### Page states
+
+Every page is designed in all its states, with the building blocks above, so a state looks and reads the same everywhere. The screenshots are in [Design Comps, Other Screens](rup/design-comps.md#other-screens).
+
+| State | What the page shows | Building block |
+| --- | --- | --- |
+| Empty | What is missing, why it matters, and the one action that fills it | `.empty-state`, `.graph-empty`, `.empty-line` |
+| Loading | Placeholders in the shape of the content, and the loading bar | `Skeleton*`, `LoadingBar` |
+| Error | What went wrong and how to fix it, with "Try again" when it can help; nothing else when the first load failed | `ErrorNotice` |
+| No internet | "You're offline" at once, the page as it was, "Back online" with Refresh | `ConnectionStatus`, `ErrorNotice` (kind `offline`) |
+| Slow network | "Still loading…" with the seconds after 3 s, the bar still moving | `ConnectionStatus` |
+| No results | The closest match and a way back to everything | `NoResults` |
+| Permission denied | Why, who can change it, and a way back; actions you may not take are hidden | `AccessDenied`, `ViewOnly` |
+| Session expired | Sign in again and come back to the same page (`/signin?reason=expired&callbackUrl=…`), drafts kept | `lib/api.ts`, `lib/drafts.ts`, the `SessionExpired` sign-in notice |
+| Form validation | The mistake under its field, the focus on the first one | `useFormErrors`, `FieldError` |
+| Success | The result in place (it rises in), and a toast with the next step | `useToast` |
+
+Feeling fast: placeholders in the shape of the content, a loading bar that sprints at the end, a project's first data fetched when you point at or focus its card (`lib/prefetch.ts`, reused for 15 s), instant board moves and saves that the server confirms afterwards, and long work that shows its progress. Blurry image previews do not apply: Hydra shows no photographs.
+
 ### Motion rules
 
 - **Resting style is the final state.** Write the meaningful end state as the normal CSS and describe only how it gets there in `@keyframes` (usually just a `from`). With reduced motion the animations are removed and the page still shows the full story, frozen on its most telling frame.
@@ -152,7 +182,7 @@ Every status shows its word next to the shape; the colour only reinforces it. An
 - **Timing.** Hover and press 160 to 240 ms; entrances 500 to 900 ms with `--lp-ease-out`; pops use the spring `cubic-bezier(0.34, 1.56, 0.64, 1)`; loops 5 to 12 s. Stagger with `--i` (index) and `calc(var(--i) * 80ms)`. Inside a loop, keep the stagger in the keyframe percentages, not in delays, when several elements must change together.
 - **Light 3D only.** CSS `perspective` with small tilts (up to about 8 degrees on hover) or a fixed isometric stack. Keep text facing the viewer when it must be read.
 - **Hover only where it exists.** Hover styles go inside `@media (hover: hover) and (pointer: fine)`; the button `:active` scale is 0.97.
-- **In the app, motion is quieter still.** The page head and cards rise in once (`.rise`, staggered by `--i`), content that loads later fades in (`.fade-in`), the work-item drawer slides in, the "Live" dot pings three times, the impact path on the topology flows slowly while it is shown, and the overview's live map tells its story once when it comes into view (each element waits for its own moment, set by `liveMap` as CSS animation delays; `.map-stage[data-inview="false"]` pauses it off screen, Replay tells it again). Nothing else moves. `prefers-reduced-motion` removes all of it, and the live map then shows its last frame straight away.
+- **In the app, motion is quieter still.** The page head and cards rise in once (`.rise`, staggered by `--i`), content that loads later fades in (`.fade-in`), the work-item drawer slides in, the "Live" dot pings three times, the impact path on the topology flows slowly while it is shown, the loading bar crawls and then sprints, toasts and connection notices drop in, and the overview's live map tells its story once when it comes into view (each element waits for its own moment, set by `liveMap` as CSS animation delays; `.map-stage[data-inview="false"]` pauses it off screen, Replay tells it again). Nothing else moves. `prefers-reduced-motion` removes all of it, and the live map then shows its last frame straight away.
 
 ### Copy rules
 
@@ -170,8 +200,9 @@ Every status shows its word next to the shape; the colour only reinforces it. An
 4. If it moves: resting style is the final state, wrap it in `InView`, add it to the off-screen pause rule, and check it with reduced motion.
 5. Status: shape plus word, using the tables above.
 6. Tables: add `.stack-table` and a `data-label` on each cell, so they read on a phone.
-7. Check Light and Dark, 375, 768 and 1440 px, keyboard focus, and that there is no horizontal scroll.
-8. Run `npm run typecheck`, `npm run lint` and `npm run build`.
+7. States: design every state in the [page states](#page-states) table. Load with skeletons, show failures with `ErrorNotice` and a retry, give searches and filters a `NoResults`, hide what a viewer may not do behind `ViewOnly`, check forms with `useFormErrors`, and confirm a success with a toast that links to the next step.
+8. Check Light and Dark, 375, 768 and 1440 px, keyboard focus, and that there is no horizontal scroll.
+9. Run `npm run typecheck`, `npm run lint` and `npm run build`.
 
 ### Where it is used
 
