@@ -3,9 +3,13 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Notice } from "@/components/app/Notice";
+import { ErrorNotice } from "@/components/app/Notice";
 import { PageHead } from "@/components/app/PageHead";
+import { ViewOnly } from "@/components/app/ProjectContext";
+import { ScanWork } from "@/components/app/ScanWork";
+import { SkeletonFeed } from "@/components/app/Skeleton";
 import { StatusPill } from "@/components/app/Status";
+import { useToast } from "@/components/app/Toaster";
 import { Icon } from "@/components/landing/Icon";
 import { DiscoveryPreview, getJson, postJson, Project, ProjectMember, RepositoryConnection, RepositoryScan } from "@/lib/api";
 import { formatWhen, formatWhenFull, plural } from "@/lib/format";
@@ -42,73 +46,79 @@ export default function IntegrationsPage() {
   const [canManage, setCanManage] = useState(false);
   const [review, setReview] = useState<Review | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [error, setError] = useState<unknown>(null);
+  const toast = useToast();
 
-  const load = useCallback(async () => {
+  /** Polls pass quiet: true, so the loading bar does not flash every two seconds while a scan runs. */
+  const load = useCallback(async (quiet = false) => {
     try {
       const [p, repositories, members, me] = await Promise.all([
-        getJson<Project>(`/api/projects/${projectId}`),
-        getJson<RepositoryConnection[]>(`/api/projects/${projectId}/repository-connections`),
-        getJson<ProjectMember[]>(`/api/projects/${projectId}/members`), getJson<{ id: string }>("/api/me")
+        getJson<Project>(`/api/projects/${projectId}`, { quiet }),
+        getJson<RepositoryConnection[]>(`/api/projects/${projectId}/repository-connections`, { quiet }),
+        getJson<ProjectMember[]>(`/api/projects/${projectId}/members`, { quiet }), getJson<{ id: string }>("/api/me", { quiet })
       ]);
       const histories = await Promise.all(repositories.map(async connection => [connection.id,
-        await getJson<RepositoryScan[]>(`/api/projects/${projectId}/repository-connections/${connection.id}/scans?limit=25`)] as const));
+        await getJson<RepositoryScan[]>(`/api/projects/${projectId}/repository-connections/${connection.id}/scans?limit=25`, { quiet })] as const));
       setProject(p); setConnections(repositories); setScans(Object.fromEntries(histories));
       setCanManage(members.some(member => member.userId === me.id && member.role === "Owner"));
-      setError("");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load integrations."); }
+      setError(null);
+    } catch (cause) { setError(cause); }
   }, [projectId]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
     if (!Object.values(scans).some(history => history.some(scan => scan.status === "Pending" || scan.status === "Running"))) return;
-    const timer = setInterval(() => void load(), 2000);
+    const timer = setInterval(() => void load(true), 2000);
     return () => clearInterval(timer);
   }, [scans, load]);
 
   async function connectDemo() {
-    setBusy(true); setError("");
+    setBusy(true); setError(null);
     try {
       await postJson(`/api/projects/${projectId}/repository-connections`,
         { provider: "LocalDevelopment", name: "Bundled Commerce System", repositoryUrl: "demo://commerce-system", defaultBranch: "bundled" });
-      setMessage("Repository connected. Start a scan to review its architecture."); await load();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to connect repository."); }
+      await load();
+      toast({ title: "Repository connected", text: "Scan it to see the components and dependencies its configuration describes." });
+    } catch (cause) { setError(cause); }
     finally { setBusy(false); }
   }
   async function action(connectionId: string, operation: "scans" | "disconnect" | "reconnect") {
-    setBusy(true); setError("");
+    setBusy(true); setError(null);
     try {
       await postJson(`/api/projects/${projectId}/repository-connections/${connectionId}/${operation}`);
-      setMessage(operation === "scans" ? "Scan queued. Review its preview when it completes." :
-        operation === "disconnect" ? "Repository disconnected. Imported history and topology remain." : "Repository ready for a new scan.");
       await load();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Repository action failed."); }
+      toast(operation === "scans" ? { tone: "info", title: "Scan started", text: "Hydra is reading the repository's configuration. Review what it found when it finishes." }
+        : operation === "disconnect" ? { title: "Repository disconnected", text: "What was imported stays in the project." }
+        : { title: "Repository reconnected", text: "You can scan it again." });
+    } catch (cause) { setError(cause); }
     finally { setBusy(false); }
   }
   async function openPreview(connectionId: string, scanId: string) {
     try {
       setReview({ connectionId, preview: await getJson<DiscoveryPreview>(
         `/api/projects/${projectId}/repository-connections/${connectionId}/scans/${scanId}/preview`) });
-      setError("");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load scan preview."); }
+      setError(null);
+    } catch (cause) { setError(cause); }
   }
   async function applyReview() {
     if (!review) return;
-    setBusy(true); setError("");
+    setBusy(true); setError(null);
     try {
       await postJson(`/api/projects/${projectId}/repository-connections/${review.connectionId}/scans/${review.preview.id}/apply`);
-      setMessage("Discovery applied. Open topology to inspect the evidence-backed graph.");
+      const { components, dependencies } = review.preview;
       setReview(null); await load();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to apply scan."); }
+      toast({ title: "Discovery applied", text: `${plural(components.length, "component")} and ${plural(dependencies.length, "dependency", "dependencies")} are on the map, each with the evidence it came from.`, action: { label: "Open topology", href: `/projects/${projectId}/topology` } });
+    } catch (cause) { setError(cause); }
     finally { setBusy(false); }
   }
 
   const when = (value: string) => <time dateTime={value} title={formatWhenFull(value)}>{formatWhen(value)}</time>;
+  // One scan at a time per repository: the API refuses a second one while the first is queued or running.
+  const scanInProgress = (connectionId: string) => (scans[connectionId] ?? []).some(scan => scan.status === "Pending" || scan.status === "Running");
   return <main id="main" className="ws-page">
-    <PageHead eyebrow="Connect" title="Integrations" lede="Connect a repository and scan its configuration, read-only. Review what the scan found before it changes the project." />
-    {error && <Notice>{error}</Notice>}
-    {message && <Notice tone="success">{message}</Notice>}
+    <PageHead eyebrow="Connect" title="Integrations" lede="Connect a repository and scan its configuration, read-only. Review what the scan found before it changes the project." actions={<ViewOnly need="Owner" />} />
+    <ErrorNotice error={error} what="the integrations" onRetry={() => void load()} />
     <div className="stack">
+      {!project && !error && <section className="panel" aria-busy="true" aria-label="Loading the integrations"><SkeletonFeed rows={3} /></section>}
       {project && connections.length === 0 && <section className="tile empty-state fade-in"><span className="empty-icon"><Icon name="plug" size={22} /></span><h2>No repository connected</h2>
         <p>Connect the bundled Commerce System to scan its Docker Compose configuration. The project works without integrations too.</p>
         {canManage && <button className="button primary" disabled={busy} onClick={() => void connectDemo()}><Icon name="plug" />Connect the bundled demo</button>}
@@ -116,11 +126,11 @@ export default function IntegrationsPage() {
       {connections.map(connection => <section className="panel fade-in" key={connection.id}><div className="panel-head"><h2>{connection.name}</h2><span className="chip" data-tone={connection.status === "Disconnected" ? "neutral" : "accent"}>{connection.status}</span></div>
         <p className="connection-meta"><span><Icon name="git-branch" size={14} />{connection.defaultBranch}</span><span className="mono">{connection.repositoryUrl}</span><span>{providerLabel(connection.provider)}</span><span><Icon name="clock" size={14} />Last successful scan: {connection.lastSuccessfulSyncAt ? when(connection.lastSuccessfulSyncAt) : "never"}</span></p>
         {connection.lastSyncError && <p className="error">{connection.lastSyncError}</p>}
-        {canManage && <div className="inline-form"><button className="button primary" disabled={busy || connection.status === "Disconnected"} onClick={() => void action(connection.id, "scans")}><Icon name="scan-search" />Scan now</button>
+        {canManage && <div className="inline-form"><button className="button primary" disabled={busy || connection.status === "Disconnected" || scanInProgress(connection.id)} onClick={() => void action(connection.id, "scans")}><Icon name="scan-search" />{scanInProgress(connection.id) ? "Scanning…" : "Scan now"}</button>
           <button className="button" disabled={busy} onClick={() => void action(connection.id, connection.status === "Disconnected" ? "reconnect" : "disconnect")}>{connection.status === "Disconnected" ? "Reconnect" : "Disconnect"}</button></div>}
         <h3>Scan history</h3>{(scans[connection.id] ?? []).length === 0 && <p className="muted">No scans yet.</p>}
         <ol className="feed">{(scans[connection.id] ?? []).map(scan => <li className="feed-item scan-item" key={scan.id}><StatusPill look={scanLook(scan.status)} /><div><strong>{when(scan.startedAt)}{scan.appliedAt ? " · applied" : ""}</strong>
-          <small>{scanSummary(scan)}</small>
+          {scan.status === "Running" || scan.status === "Pending" ? <ScanWork startedAt={scan.startedAt} queued={scan.status === "Pending"} /> : <small>{scanSummary(scan)}</small>}
           {scan.errorMessage && <small>{scan.errorMessage}</small>}</div>
           {scan.status === "Succeeded" || scan.status === "PartiallySucceeded" ? <button className="button small" onClick={() => void openPreview(connection.id, scan.id)}>Review</button> : <span />}</li>)}</ol>
       </section>)}

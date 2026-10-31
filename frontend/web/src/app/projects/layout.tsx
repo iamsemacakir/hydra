@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth, signOut, type BackendSession } from "@/auth";
+import { ConnectionStatus, LoadingBar } from "@/components/app/NetworkStatus";
+import { Toaster } from "@/components/app/Toaster";
 import { Brand } from "@/components/landing/Brand";
 import { Icon } from "@/components/landing/Icon";
 import { ThemeToggle } from "@/components/landing/ThemeToggle";
@@ -7,7 +9,8 @@ import { initials } from "@/lib/format";
 import "./app.css";
 
 /*
- * The signed-in app shell: a sticky header with the brand, the theme switch and the account.
+ * The signed-in app shell: a sticky header with the brand, the theme switch and the account, the
+ * loading bar and connection notices, and the success toasts every page can show.
  * app.css holds the styles of every page under /projects.
  */
 export default async function ProjectsLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -16,6 +19,7 @@ export default async function ProjectsLayout({ children }: Readonly<{ children: 
   const name = session.user?.name ?? session.user?.email ?? "Signed in";
   return (
     <div className="app" data-app>
+      <LoadingBar />
       <a className="skip-link" href="#main">Skip to content</a>
       <header className="app-header">
         <div className="app-header-inner">
@@ -35,7 +39,8 @@ export default async function ProjectsLayout({ children }: Readonly<{ children: 
           </div>
         </div>
       </header>
-      {children}
+      <ConnectionStatus />
+      <Toaster>{children}</Toaster>
     </div>
   );
 }

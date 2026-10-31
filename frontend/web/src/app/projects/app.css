@@ -1066,7 +1066,6 @@
 .graph-area .react-flow__edge.edge-impact .react-flow__edge-path { animation: app-dash 1.2s linear infinite; }
 @keyframes app-dash { to { stroke-dashoffset: -18; } }
 
-.graph-loading { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; color: var(--lp-ink-3); font-size: 14px; text-align: center; pointer-events: none; }
 
 .graph-legend {
   position: absolute;
@@ -1417,6 +1416,140 @@
   .stat-icon { width: 28px; height: 28px; margin-bottom: 6px; border-radius: 9px; }
   .stat strong, .stats > div strong { font-size: 26px; line-height: 32px; }
 }
+
+/* ------------------------------------------------------------------ */
+/* States: success, network, validation, no results, access           */
+/* ------------------------------------------------------------------ */
+
+.notice-action { flex: none; align-self: center; margin-left: auto; }
+
+/* Success toasts: bottom right, a check that pops in with one ring around it, then the next step. */
+.toasts { position: fixed; right: 20px; bottom: 20px; z-index: 70; display: grid; gap: 10px; width: min(380px, calc(100vw - 32px)); pointer-events: none; }
+.toast {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 14px 10px 14px 14px;
+  border: 1px solid var(--lp-line);
+  border-radius: 16px;
+  background: var(--lp-surface);
+  box-shadow: var(--lp-shadow-pop);
+  pointer-events: auto;
+  animation: app-toast-in 420ms var(--lp-ease-out);
+}
+.toast[data-tone="success"] { --tone: var(--lp-ok); --tone-soft: var(--lp-ok-soft); }
+.toast[data-tone="info"] { --tone: var(--lp-accent); --tone-soft: var(--lp-accent-soft); }
+.toast[data-tone="error"] { --tone: var(--lp-bad); --tone-soft: var(--lp-bad-soft); }
+.toast-icon { position: relative; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 999px; background: var(--tone-soft); color: var(--tone); animation: app-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) 100ms both; }
+.toast[data-tone="success"] .toast-icon::after { content: ""; position: absolute; inset: 0; border: 2px solid var(--tone); border-radius: 999px; opacity: 0; animation: app-ring 760ms var(--lp-ease-out) 220ms; }
+.toast-title { font-size: 14px; line-height: 20px; font-weight: 620; }
+.toast-text { margin-top: 2px; color: var(--lp-ink-2); font-size: 13px; line-height: 19px; }
+.toast-action { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; color: var(--lp-accent); font-size: 13px; line-height: 18px; font-weight: 600; }
+.toast-action svg { transition: transform var(--lp-dur-ui) var(--lp-ease-out); }
+.toast-close { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--lp-ink-3); cursor: pointer; }
+@media (hover: hover) and (pointer: fine) {
+  .toast-close:hover { background: var(--lp-surface-2); color: var(--lp-ink); }
+  .toast-action:hover svg { transform: translateX(3px); }
+}
+@keyframes app-toast-in { from { opacity: 0; transform: translateY(12px) scale(0.98); } }
+@keyframes app-pop { from { opacity: 0; transform: scale(0.4); } }
+@keyframes app-ring { from { opacity: 0.55; transform: scale(0.85); } to { opacity: 0; transform: scale(1.9); } }
+@media (max-width: 520px) { .toasts { right: 16px; bottom: 16px; left: 16px; width: auto; } }
+
+/* The loading bar: crawls while the API works, sprints to the end when it is done, then fades. */
+.loading-bar { position: fixed; inset: 0 0 auto; z-index: 90; height: 2px; pointer-events: none; }
+.loading-bar span { display: block; width: 0; height: 100%; border-radius: 0 2px 2px 0; background: linear-gradient(90deg, var(--lp-accent), var(--lp-accent-2)); opacity: 0; }
+.loading-bar[data-phase="running"] span { width: 86%; opacity: 1; transition: width 9s cubic-bezier(0.15, 0.4, 0.3, 1), opacity 120ms linear; }
+.loading-bar[data-phase="done"] span { width: 100%; opacity: 0; transition: width 240ms cubic-bezier(0.4, 0, 0.2, 1), opacity 240ms ease 260ms; }
+
+/* Offline, back online, and a slow server: one calm pill under the header. */
+.conn-status {
+  /* Centred with auto margins rather than a transform, so a long message can use the full width on a phone. */
+  position: fixed;
+  top: 76px;
+  right: 0;
+  left: 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  margin-inline: auto;
+  padding: 9px 14px;
+  border: 1px solid var(--lp-line);
+  border-radius: 999px;
+  background: var(--lp-glass);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--lp-shadow-pop);
+  color: var(--lp-ink-2);
+  font-size: 13px;
+  line-height: 18px;
+  animation: app-drop 360ms var(--lp-ease-out);
+}
+.conn-status strong { color: var(--lp-ink); font-weight: 600; }
+.conn-status > .glyph { color: var(--tone); }
+.conn-status[data-tone="warn"] { border-color: color-mix(in oklab, var(--lp-warn) 45%, var(--lp-line)); }
+.conn-status[data-tone="ok"] { border-color: color-mix(in oklab, var(--lp-ok) 45%, var(--lp-line)); }
+.conn-action { flex: none; padding: 3px 10px; border: 1px solid var(--lp-line-strong); border-radius: 999px; background: var(--lp-surface); color: var(--lp-ink); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.conn-spinner { flex: none; width: 12px; height: 12px; border: 2px solid var(--lp-line-strong); border-top-color: var(--lp-accent); border-radius: 999px; animation: app-spin 900ms linear infinite; }
+@keyframes app-spin { to { transform: rotate(360deg); } }
+@keyframes app-drop { from { opacity: 0; transform: translateY(-8px); } }
+@media (max-width: 640px) { .conn-status { top: 70px; border-radius: 14px; } }
+
+/* No results: what was not found, the likely intended name, and the way back to everything. */
+.no-results { display: grid; justify-items: center; gap: 8px; padding: 32px 20px; text-align: center; }
+.no-results .empty-icon { margin-bottom: 4px; }
+.no-results-title { font-size: 15px; line-height: 22px; font-weight: 600; }
+.no-results-hint { color: var(--lp-ink-2); font-size: 14px; }
+.no-results .button { margin-top: 4px; }
+.link-button { padding: 0; border: 0; background: none; color: var(--lp-accent); font: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.graph-area .no-results {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 6;
+  width: min(360px, calc(100% - 32px));
+  border: 1px solid var(--lp-line);
+  border-radius: 18px;
+  background: var(--lp-glass);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--lp-shadow-pop);
+  transform: translate(-50%, -50%);
+}
+.graph-empty { position: absolute; inset: 0; z-index: 4; display: grid; place-content: center; justify-items: center; gap: 10px; padding: 24px; text-align: center; }
+.graph-empty p:not(.empty-title) { max-width: 360px; color: var(--lp-ink-2); font-size: 14px; }
+/* On the grey map the icon needs its own tile. */
+.graph-empty .empty-icon { background: var(--lp-surface); box-shadow: inset 0 0 0 1px var(--lp-line); }
+.board-no-results { margin-bottom: 14px; }
+
+/* View only, and the page for a project you may not open. */
+.view-only { gap: 6px; color: var(--lp-ink-3); }
+.access-denied { max-width: 720px; margin: 24px auto 0; }
+.access-denied h1 { font-size: clamp(22px, 2.4vw, 28px); line-height: 1.25; font-weight: 650; letter-spacing: -0.025em; }
+
+/* Validation: the message sits right under the field it belongs to. */
+.field-error { display: flex; align-items: flex-start; gap: 6px; color: var(--lp-bad-ink); font-size: 13px; line-height: 18px; font-weight: 500; animation: app-fade 200ms var(--lp-ease-out); }
+.field-error .glyph { margin-top: 3px; color: var(--lp-bad); }
+.app :where(input, select, textarea)[aria-invalid="true"] { border-color: var(--lp-bad); background-color: color-mix(in oklab, var(--lp-bad-soft) 35%, var(--lp-surface)); }
+.app :where(input, select, textarea)[aria-invalid="true"]:focus-visible { outline-color: var(--lp-bad); }
+
+/* Loading placeholders in the shape of what is coming. */
+.skeleton-bar { display: block; }
+.skeleton-row td { padding-top: 17px; padding-bottom: 17px; }
+.skeleton-graph { position: absolute; inset: 0; display: grid; align-content: center; gap: 34px; padding: 40px 0; overflow: hidden; }
+.skeleton-graph-row { position: relative; height: 62px; }
+.skeleton-node { position: absolute; left: calc(50% + var(--slot) * 120px - 90px); width: 180px; height: 62px; border-radius: 14px; }
+.panel-skeleton { display: grid; gap: 12px; }
+.empty-title { color: var(--lp-ink); font-size: 17px; line-height: 24px; font-weight: 620; letter-spacing: -0.015em; }
+.confirm-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 14px; padding: 12px 14px; border: 1px solid color-mix(in oklab, var(--lp-bad) 30%, var(--lp-line)); border-radius: 14px; background: color-mix(in oklab, var(--lp-bad-soft) 45%, var(--lp-surface)); }
+.confirm-row p { flex: 1 1 260px; color: var(--lp-ink-2); font-size: 14px; }
+.confirm-row strong { color: var(--lp-ink); }
+.scan-work { display: flex; align-items: center; gap: 8px; }
+.danger-zone .confirm-row .button { margin-top: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .app *, .app *::before, .app *::after { animation: none !important; transition: none !important; }

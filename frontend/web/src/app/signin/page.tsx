@@ -17,7 +17,9 @@ const first = (value: string | string[] | undefined) => (Array.isArray(value) ? 
 export default async function SignIn({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const missing = missingAuthSettings(process.env);
-  const notice = signInNotice(first(params.error), {
+  // The app sends people back here with ?reason=expired when their session ends in the middle of their work.
+  const code = first(params.error) ?? (first(params.reason) === "expired" ? "SessionExpired" : undefined);
+  const notice = signInNotice(code, {
     development: process.env.NODE_ENV !== "production",
     missing,
     issuer: process.env.AUTH_KEYCLOAK_ISSUER,

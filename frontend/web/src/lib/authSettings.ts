@@ -41,8 +41,9 @@ function keycloakHints(context: SignInContext): string[] {
 
 /**
  * What to show on the sign-in page. Auth.js sends visitors back with ?error=<code> (codes:
- * https://authjs.dev/reference/core/errors). Missing settings win over any code, because nothing
- * else can work until they are set. Unknown codes get the generic message.
+ * https://authjs.dev/reference/core/errors). "SessionExpired" is Hydra's own: the app sends people
+ * here with ?reason=expired when the API answers 401. Missing settings win over any code, because
+ * nothing else can work until they are set. Unknown codes get the generic message.
  */
 export function signInNotice(code: string | undefined, context: SignInContext): SignInNotice | null {
   if (context.missing.length > 0) {
@@ -74,6 +75,8 @@ export function signInNotice(code: string | undefined, context: SignInContext): 
       return { tone: "error", title: "Access was denied.", text: "Your account is not allowed to sign in here. Ask your administrator for access.", hints: [] };
     case "SessionRequired":
       return { tone: "info", title: "Please sign in first.", text: "You need to be signed in to open that page.", hints: [] };
+    case "SessionExpired":
+      return { tone: "info", title: "Your session expired.", text: "Sign in again to go back to the page you were on. Drafts of new projects and work items stay on this device.", hints: [] };
     default:
       return { tone: "error", title: "Sign-in did not finish.", text: "Something went wrong on the way back from Keycloak. Please try again.", hints: [] };
   }

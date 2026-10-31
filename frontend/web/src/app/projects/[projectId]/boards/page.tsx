@@ -1,13 +1,19 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Notice } from "@/components/app/Notice";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { FieldError, useFormErrors } from "@/components/app/FormErrors";
+import { NoResults } from "@/components/app/NoResults";
+import { ErrorNotice, Notice } from "@/components/app/Notice";
 import { PageHead } from "@/components/app/PageHead";
+import { ViewOnly } from "@/components/app/ProjectContext";
 import { StatusGlyph, StatusText } from "@/components/app/Status";
+import { useToast } from "@/components/app/Toaster";
 import { Icon, type IconName } from "@/components/landing/Icon";
 import { Component, getJson, Iteration, postJson, Project, ProjectMember, sendJson, Tag, WorkItem, WorkItemActivity, WorkItemComponentLink, WorkItemPriority, WorkItemState, WorkItemTag, WorkItemType } from "@/lib/api";
+import { clearDraft, hasStringFields, loadDraft, saveDraft } from "@/lib/drafts";
 import { formatWhen, formatWhenFull, initials } from "@/lib/format";
+import { closestMatch } from "@/lib/search";
 import { priorityTone, workStateLook } from "@/lib/status";
 
 type Draft = { type: WorkItemType; title: string; description: string; priority: WorkItemPriority; assignedToUserId: string; parentId: string; storyPoints: string; originalEstimateHours: string; remainingWorkHours: string; iterationId: string; area: string; tagIds: string[]; componentIds: string[] };
@@ -18,6 +24,19 @@ const emptyDraft = (): Draft => ({ type: "Task", title: "", description: "", pri
 const numberOrNull = (value: string) => value.trim() === "" ? null : Number(value);
 const TYPE_ICONS: Record<WorkItemType, IconName> = { UserStory: "bookmark", Task: "square-check", Bug: "bug" };
 const typeLabel = (type: WorkItemType) => type === "UserStory" ? "Story" : type;
+const DRAFT_TEXT_FIELDS = ["type", "title", "description", "priority", "assignedToUserId", "parentId", "storyPoints", "originalEstimateHours", "remainingWorkHours", "iterationId", "area"] as const;
+const SAVE_FIELDS = ["title", "description", "storyPoints", "area", "originalEstimateHours", "remainingWorkHours"];
+
+/** An unsaved work item kept on this device: survives an expired session, a reload or a closed drawer. */
+type StoredWorkDraft = { editingId: string | null; draft: Draft };
+function isStoredWorkDraft(value: unknown): value is StoredWorkDraft {
+  if (typeof value !== "object" || value === null) return false;
+  const { editingId, draft } = value as { editingId?: unknown; draft?: unknown };
+  if (editingId !== null && typeof editingId !== "string") return false;
+  if (!hasStringFields(draft, DRAFT_TEXT_FIELDS)) return false;
+  const lists = draft as unknown as { tagIds?: unknown; componentIds?: unknown };
+  return Array.isArray(lists.tagIds) && Array.isArray(lists.componentIds);
+}
 
 export default function BoardPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -48,7 +67,13 @@ export default function BoardPage() {
   const [dropState, setDropState] = useState<WorkItemState | null>(null);
   const [moveAnnouncement, setMoveAnnouncement] = useState("");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<unknown>(null);
+  const [saveError, setSaveError] = useState<unknown>(null);
+  const [dirty, setDirty] = useState(false);
+  const [restorable, setRestorable] = useState<StoredWorkDraft | null>(null);
+  const form = useFormErrors();
+  const toast = useToast();
+  const draftKey = `workitem:${projectId}`;
 
   const load = useCallback(async () => {
     try {
@@ -61,11 +86,15 @@ export default function BoardPage() {
         getJson<{ id: string }>("/api/me")
       ]);
       setProject(p); setItems(work); setMembers(people); setIterations(cycles); setTags(labels); setLinks(attached);
-      setComponents(systemComponents); setComponentLinks(attachedComponents); setMeId(me.id); setError("");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load board."); }
+      setComponents(systemComponents); setComponentLinks(attachedComponents); setMeId(me.id); setError(null);
+    } catch (cause) { setError(cause); }
     finally { setLoading(false); }
   }, [projectId, stateFilter, view]);
   useEffect(() => { void load(); }, [load]);
+  // A draft left from before (an expired session, a reload, a closed drawer) is offered back.
+  useEffect(() => { setRestorable(loadDraft(draftKey, isStoredWorkDraft)); }, [draftKey]);
+  // While you type, the draft is kept on this device, so nothing is lost if the session ends.
+  useEffect(() => { if (drawerOpen && dirty) saveDraft<StoredWorkDraft>(draftKey, { editingId: editing?.id ?? null, draft }); }, [drawerOpen, dirty, draft, editing, draftKey]);
 
   const canEdit = members.some(member => member.userId === meId && member.role !== "Viewer");
   const memberName = (id: string | null) => members.find(member => member.userId === id)?.displayName ?? "Unassigned";
@@ -86,9 +115,9 @@ export default function BoardPage() {
     return true;
   }), [items, search, typeFilter, priorityFilter, view, stateFilter, assigneeFilter, meId, iterationFilter, iterations]);
 
-  function openNew() { setEditing(null); setDraft(emptyDraft()); setActivity([]); setDrawerOpen(true); }
+  function openNew() { setEditing(null); setDraft(emptyDraft()); setDirty(false); setActivity([]); setSaveError(null); form.reset(); setDrawerOpen(true); }
   function openItem(item: WorkItem) {
-    setEditing(item);
+    setEditing(item); setDirty(false); setSaveError(null); form.reset();
     setDraft({ type: item.type, title: item.title, description: item.description, priority: item.priority,
       assignedToUserId: item.assignedToUserId ?? "", parentId: item.parentId ?? "", storyPoints: item.storyPoints?.toString() ?? "",
       originalEstimateHours: item.originalEstimateHours?.toString() ?? "", remainingWorkHours: item.remainingWorkHours?.toString() ?? "",
@@ -96,7 +125,21 @@ export default function BoardPage() {
     setActivity([]); setDrawerOpen(true);
     void getJson<WorkItemActivity[]>(`/api/work-items/${item.id}/activity`).then(setActivity).catch(() => setActivity([]));
   }
-  function changeDraft<K extends keyof Draft>(key: K, value: Draft[K]) { setDraft(current => ({ ...current, [key]: value })); }
+  function changeDraft<K extends keyof Draft>(key: K, value: Draft[K]) { setDraft(current => ({ ...current, [key]: value })); setDirty(true); }
+  /** Closing keeps unsaved changes as a draft you can come back to; Cancel throws them away. */
+  function closeDrawer(keepChanges: boolean) {
+    setDrawerOpen(false); setSaveError(null); form.reset();
+    if (keepChanges && dirty) setRestorable({ editingId: editing?.id ?? null, draft });
+    else { clearDraft(draftKey); setRestorable(null); }
+    setDirty(false);
+  }
+  function resume(stored: StoredWorkDraft) {
+    const item = stored.editingId ? items.find(candidate => candidate.id === stored.editingId) ?? null : null;
+    setEditing(item); setDraft(stored.draft); setDirty(true); setActivity([]); setSaveError(null); form.reset(); setRestorable(null); setDrawerOpen(true);
+    if (item) void getJson<WorkItemActivity[]>(`/api/work-items/${item.id}/activity`).then(setActivity).catch(() => setActivity([]));
+  }
+  function discardDraft() { clearDraft(draftKey); setRestorable(null); }
+  function clearFilters() { setSearch(""); setTypeFilter(""); setPriorityFilter(""); setAssigneeFilter(""); setIterationFilter(""); setStateFilter(""); }
   async function syncTags(itemId: string, desired: string[]) {
     const current = tagIdsFor(itemId);
     for (const id of desired.filter(id => !current.includes(id))) await sendJson<void>("POST", `/api/work-items/${itemId}/tags/${id}`);
@@ -107,8 +150,8 @@ export default function BoardPage() {
     for (const id of desired.filter(id => !current.includes(id))) await sendJson<void>("POST", `/api/work-items/${itemId}/components/${id}`);
     for (const id of current.filter(id => !desired.includes(id))) await sendJson<void>("DELETE", `/api/work-items/${itemId}/components/${id}`);
   }
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setBusy(true); setError("");
+  async function submit() {
+    setBusy(true); setSaveError(null);
     const payload = { type: draft.type, title: draft.title, description: draft.description, priority: draft.priority,
       assignedToUserId: draft.assignedToUserId || null, parentId: draft.parentId || null, storyPoints: numberOrNull(draft.storyPoints),
       originalEstimateHours: numberOrNull(draft.originalEstimateHours), remainingWorkHours: numberOrNull(draft.remainingWorkHours),
@@ -118,14 +161,22 @@ export default function BoardPage() {
         : await postJson<WorkItem>(`/api/projects/${projectId}/work-items`, payload);
       await syncTags(saved.id, draft.tagIds);
       await syncComponents(saved.id, draft.componentIds);
-      setDrawerOpen(false); await load();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to save work item."); }
+      // Show the result at once; the full reload follows quietly.
+      setItems(current => editing ? current.map(item => item.id === saved.id ? saved : item) : [...current, saved]);
+      setLinks(current => [...current.filter(link => link.workItemId !== saved.id), ...draft.tagIds.map(tagId => ({ workItemId: saved.id, tagId }))]);
+      setComponentLinks(current => [...current.filter(link => link.workItemId !== saved.id), ...draft.componentIds.map(componentId => ({ workItemId: saved.id, componentId }))]);
+      clearDraft(draftKey); setDirty(false); setRestorable(null); setDrawerOpen(false); form.reset();
+      toast(editing
+        ? { title: "Changes saved", text: `#${saved.sequenceNumber} ${saved.title}` }
+        : { title: `Work item #${saved.sequenceNumber} created`, text: draft.componentIds.length > 0 ? "It also shows on the topology, next to the components you linked." : `It is in ${saved.state}. Move it across the board as the work goes on.` });
+      void load();
+    } catch (cause) { if (!form.handleApiError(cause, SAVE_FIELDS)) setSaveError(cause); }
     finally { setBusy(false); }
   }
   async function move(item: WorkItem, state: WorkItemState) {
     if (!canEdit || movingId || item.state === state) return;
     setMovingId(item.id);
-    setError("");
+    setError(null);
     setMoveAnnouncement("");
     setItems(current => current.map(candidate => candidate.id === item.id ? { ...candidate, state } : candidate));
     try {
@@ -133,7 +184,7 @@ export default function BoardPage() {
       setMoveAnnouncement(`Moved ${item.title} to ${state}.`);
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to move work item.");
+      setError(cause);
       await load();
     } finally { setMovingId(null); }
   }
@@ -148,7 +199,7 @@ export default function BoardPage() {
     try {
       const tag = await postJson<Tag>(`/api/projects/${projectId}/tags`, { name: newTag.trim(), colorToken: "blue" });
       setTags(current => [...current, tag]); changeDraft("tagIds", [...draft.tagIds, tag.id]); setNewTag("");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to add tag."); }
+    } catch (cause) { if (!form.handleApiError(cause, [], "newTag")) setSaveError(cause); }
   }
   const badge = (item: WorkItem) => <><span className={`work-type ${item.type.toLowerCase()}`}><Icon name={TYPE_ICONS[item.type]} size={14} />{typeLabel(item.type)}</span><span className="work-number">#{item.sequenceNumber}</span></>;
   const itemTags = (item: WorkItem) => <div className="work-tags">{tagNamesFor(item.id).map(tag => <span className={`work-tag tag-${tag.colorToken ?? "slate"}`} key={tag.id}>{tag.name}</span>)}</div>;
@@ -159,7 +210,7 @@ export default function BoardPage() {
 
   return <main id="main" className="ws-page">
     <PageHead eyebrow="Plan" title="Boards" lede="Plan work next to the system it changes. Link a work item to a component and it shows up on the topology."
-      actions={canEdit && <button className="button primary" onClick={openNew}><Icon name="plus" />New work item</button>} />
+      actions={canEdit ? <button className="button primary" onClick={openNew}><Icon name="plus" />New work item</button> : <ViewOnly />} />
     <div className="board-toolbar">
       <div className="seg" role="group" aria-label="View"><button className="seg-option" aria-pressed={view === "board"} onClick={() => setView("board")}><Icon name="square-kanban" size={15} />Board</button><button className="seg-option" aria-pressed={view === "backlog"} onClick={() => setView("backlog")}><Icon name="layers" size={15} />Backlog</button></div>
       <div className="search-field"><Icon name="search" /><input type="search" aria-label="Search work items" placeholder="Search work items" value={search} onChange={event => setSearch(event.target.value)} /></div>
@@ -169,10 +220,14 @@ export default function BoardPage() {
       <select aria-label="Filter assignee" value={assigneeFilter} onChange={event => setAssigneeFilter(event.target.value)}><option value="">All assignees</option><option value="me">Assigned to me</option><option value="unassigned">Unassigned</option>{members.map(member => <option value={member.userId} key={member.userId}>{member.displayName}</option>)}</select>
       <select aria-label="Filter iteration" value={iterationFilter} onChange={event => setIterationFilter(event.target.value)}><option value="">All iterations</option><option value="current">Current</option><option value="backlog">Backlog</option>{iterations.map(iteration => <option value={iteration.id} key={iteration.id}>{iteration.name}</option>)}</select>
     </div>
-    {error && !drawerOpen && <Notice>{error}</Notice>}
+    {!drawerOpen && <ErrorNotice error={error} what="the board" onRetry={() => { setError(null); setLoading(true); void load(); }} />}
+    {restorable && !drawerOpen && canEdit && <Notice tone="info" title="You have an unsaved work item" action={<><button className="button small primary" onClick={() => resume(restorable)}>Continue editing</button><button className="button small ghost" onClick={discardDraft}>Discard</button></>}>
+      {restorable.draft.title ? `“${restorable.draft.title}”` : "A new work item without a title yet"}{restorable.editingId ? ", changes to an existing item" : ""}. It was kept on this device.</Notice>}
+    {!loading && project && items.length > 0 && filtered.length === 0 && <NoResults className="tile board-no-results" query={search} what="work items"
+      suggestion={search ? closestMatch(search, items.map(item => item.title)) : null} onSuggestion={setSearch} onClear={clearFilters} />}
     <p className="sr-only" role="status">{moveAnnouncement}</p>
     {loading && <div className="board-columns" aria-busy="true" aria-label="Loading work items">{states.map(state => <section className="board-column" key={state}><h2>{state}</h2><div className="board-cards"><div className="work-card"><span className="skeleton" style={{ display: "block", height: 14, width: "40%" }} /><span className="skeleton" style={{ display: "block", height: 16, width: "90%", marginTop: 12 }} /></div></div></section>)}</div>}
-    {!loading && project && view === "board" && items.length > 0 && <><p className="board-hint">{canEdit ? <><Icon name="grip-vertical" size={14} />Drag a card to another column, or use its Move menu.</> : "You can view this board. Ask an owner for contributor access to change it."}</p><div className="board-columns fade-in">{states.map(state => { const look = workStateLook(state); const inColumn = filtered.filter(item => item.state === state); return <section className={`board-column${dropState === state ? " drop-target" : ""}`} key={state} aria-label={`${state}, ${inColumn.length} items`}
+    {!loading && project && view === "board" && filtered.length > 0 && <><p className="board-hint">{canEdit ? <><Icon name="grip-vertical" size={14} />Drag a card to another column, or use its Move menu.</> : "You can view this board. Ask an owner for contributor access to change it."}</p><div className="board-columns fade-in">{states.map(state => { const look = workStateLook(state); const inColumn = filtered.filter(item => item.state === state); return <section className={`board-column${dropState === state ? " drop-target" : ""}`} key={state} aria-label={`${state}, ${inColumn.length} items`}
       onDragOver={event => { if (canEdit && draggedId) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; if (dropState !== state) setDropState(state); } }}
       onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as globalThis.Node | null) && dropState === state) setDropState(null); }}
       onDrop={event => { event.preventDefault(); dropOn(state); }}>
@@ -181,8 +236,8 @@ export default function BoardPage() {
         onDragStart={event => { if (!canEdit || movingId) return; event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", item.id); setDraggedId(item.id); }}
         onDragEnd={() => { setDraggedId(null); setDropState(null); }}>
         <div className="work-card-head">{badge(item)}<span className="priority" data-tone={priorityTone(item.priority)}>{item.priority}</span>{canEdit && <span className="drag-grip" aria-hidden="true" title="Drag to move"><Icon name="grip-vertical" size={14} /></span>}</div><button className="work-title" onClick={() => openItem(item)}>{item.title}</button>{tagNamesFor(item.id).length > 0 && itemTags(item)}<div className="work-card-foot">{assignee(item.assignedToUserId)}{item.storyPoints !== null && <span className="mono">{item.storyPoints} pts</span>}</div>{canEdit && <select aria-label={`Move ${item.title}`} disabled={movingId === item.id} value={item.state} onChange={event => void move(item, event.target.value as WorkItemState)}>{[...states, "Removed"].map(option => <option key={option} value={option}>{option === item.state ? `In ${option}` : `Move to ${option}`}</option>)}</select>}</article>)}{inColumn.length === 0 && <p className="board-empty">{draggedId ? "Drop here" : "No items"}</p>}</div></section>; })}</div></>}
-    {!loading && project && view === "backlog" && <div className="panel table-panel stack-table fade-in"><table><thead><tr><th>ID</th><th>Type</th><th>Title</th><th>State</th><th>Priority</th><th>Assignee</th><th>Iteration</th><th>Tags</th></tr></thead><tbody>{filtered.map(item => <tr key={item.id}><td className="mono" data-label="ID">#{item.sequenceNumber}</td><td data-label="Type"><span className={`work-type ${item.type.toLowerCase()}`}><Icon name={TYPE_ICONS[item.type]} size={14} />{typeLabel(item.type)}</span></td><td data-primary><button className="table-link" onClick={() => openItem(item)}>{item.title}</button></td><td data-label="State"><StatusText look={workStateLook(item.state)} /></td><td data-label="Priority"><span className="priority" data-tone={priorityTone(item.priority)}>{item.priority}</span></td><td data-label="Assignee">{assignee(item.assignedToUserId)}</td><td data-label="Iteration">{iterations.find(iteration => iteration.id === item.iterationId)?.name ?? "Backlog"}</td><td data-label="Tags">{itemTags(item)}</td></tr>)}</tbody></table>{filtered.length === 0 && <p className="muted">No work items match these filters.</p>}</div>}
-    {!loading && project && items.length === 0 && view === "board" && <section className="tile empty-state fade-in"><span className="empty-icon"><Icon name="square-kanban" size={22} /></span><h2>No work items yet</h2><p>Create a story, a task or a bug to start the board.</p>{canEdit && <button className="button primary" onClick={openNew}><Icon name="plus" />Create work item</button>}</section>}
-    {drawerOpen && <div className="drawer-backdrop" onClick={() => setDrawerOpen(false)}><aside className="work-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" onClick={event => event.stopPropagation()} onKeyDown={event => { if (event.key === "Escape") setDrawerOpen(false); }}><div className="drawer-heading"><div><p className="eyebrow">{editing ? `Work item #${editing.sequenceNumber}` : "New work item"}</p><h2 id="drawer-title">{editing ? editing.title : "Create a work item"}</h2></div><button className="button ghost icon-only" autoFocus aria-label="Close" onClick={() => setDrawerOpen(false)}><Icon name="x" size={18} /></button></div><form onSubmit={submit} className="form-panel drawer-form"><fieldset disabled={!canEdit || busy}><div className="form-row"><label>Type<select value={draft.type} onChange={event => changeDraft("type", event.target.value as WorkItemType)}>{types.map(type => <option key={type} value={type}>{typeLabel(type)}</option>)}</select></label><label>Priority<select value={draft.priority} onChange={event => changeDraft("priority", event.target.value as WorkItemPriority)}>{priorities.map(priority => <option key={priority}>{priority}</option>)}</select></label></div><label>Title<input required minLength={2} maxLength={240} value={draft.title} onChange={event => changeDraft("title", event.target.value)} placeholder="What needs to happen?" /></label><label>Description<textarea maxLength={10000} value={draft.description} onChange={event => changeDraft("description", event.target.value)} /></label><div className="form-row"><label>Assignee<select value={draft.assignedToUserId} onChange={event => changeDraft("assignedToUserId", event.target.value)}><option value="">Unassigned</option>{members.map(member => <option value={member.userId} key={member.userId}>{member.displayName}</option>)}</select></label><label>Iteration<select value={draft.iterationId} onChange={event => changeDraft("iterationId", event.target.value)}><option value="">Backlog</option>{iterations.map(iteration => <option value={iteration.id} key={iteration.id}>{iteration.name}</option>)}</select></label></div><div className="form-row"><label>Story points<input type="number" min="0" value={draft.storyPoints} onChange={event => changeDraft("storyPoints", event.target.value)} /></label><label>Area<input maxLength={120} value={draft.area} onChange={event => changeDraft("area", event.target.value)} /></label></div><div className="form-row"><label>Original estimate (hours)<input type="number" min="0" step="0.25" value={draft.originalEstimateHours} onChange={event => changeDraft("originalEstimateHours", event.target.value)} /></label><label>Remaining work (hours)<input type="number" min="0" step="0.25" value={draft.remainingWorkHours} onChange={event => changeDraft("remainingWorkHours", event.target.value)} /></label></div><label>Parent work item<select value={draft.parentId} onChange={event => changeDraft("parentId", event.target.value)}><option value="">None</option>{items.filter(item => item.id !== editing?.id).map(item => <option value={item.id} key={item.id}>#{item.sequenceNumber} {item.title}</option>)}</select></label><div className="tag-picker"><strong>Tags</strong><div>{tags.map(tag => <label key={tag.id}><input type="checkbox" checked={draft.tagIds.includes(tag.id)} onChange={event => changeDraft("tagIds", event.target.checked ? [...draft.tagIds, tag.id] : draft.tagIds.filter(id => id !== tag.id))} /><span className={`work-tag tag-${tag.colorToken ?? "slate"}`}>{tag.name}</span></label>)}</div><div className="inline-form"><input aria-label="New tag name" maxLength={60} placeholder="New tag" value={newTag} onChange={event => setNewTag(event.target.value)} /><button className="button" type="button" onClick={() => void addTag()}><Icon name="plus" size={14} />Add tag</button></div></div><div className="tag-picker"><strong>Linked components</strong><div>{components.map(component => <label key={component.id}><input type="checkbox" checked={draft.componentIds.includes(component.id)} onChange={event => changeDraft("componentIds", event.target.checked ? [...draft.componentIds, component.id] : draft.componentIds.filter(id => id !== component.id))} /><span>{component.name}</span></label>)}</div>{components.length === 0 && <small>Add a component to the project to link work with operations.</small>}</div></fieldset>{error && <p className="error" role="alert">{error}</p>}{canEdit && <div className="form-actions"><button className="button" type="button" onClick={() => setDrawerOpen(false)}>Cancel</button><button className="button primary" disabled={busy}>{busy ? "Saving…" : editing ? "Save changes" : "Create work item"}</button></div>}</form>{editing && <section className="activity-list"><h3>Activity</h3>{activity.map(entry => <p key={entry.id}><strong>{entry.type}</strong> {entry.fieldName && `${entry.fieldName}: `}{entry.oldValue && `${activityValue(entry.fieldName, entry.oldValue)} → `}{activityValue(entry.fieldName, entry.newValue)} <small><time dateTime={entry.occurredAt} title={formatWhenFull(entry.occurredAt)}>{formatWhen(entry.occurredAt)}</time></small></p>)}{activity.length === 0 && <p>No activity yet.</p>}</section>}</aside></div>}
+    {!loading && project && view === "backlog" && filtered.length > 0 && <div className="panel table-panel stack-table fade-in"><table><thead><tr><th>ID</th><th>Type</th><th>Title</th><th>State</th><th>Priority</th><th>Assignee</th><th>Iteration</th><th>Tags</th></tr></thead><tbody>{filtered.map(item => <tr key={item.id}><td className="mono" data-label="ID">#{item.sequenceNumber}</td><td data-label="Type"><span className={`work-type ${item.type.toLowerCase()}`}><Icon name={TYPE_ICONS[item.type]} size={14} />{typeLabel(item.type)}</span></td><td data-primary><button className="table-link" onClick={() => openItem(item)}>{item.title}</button></td><td data-label="State"><StatusText look={workStateLook(item.state)} /></td><td data-label="Priority"><span className="priority" data-tone={priorityTone(item.priority)}>{item.priority}</span></td><td data-label="Assignee">{assignee(item.assignedToUserId)}</td><td data-label="Iteration">{iterations.find(iteration => iteration.id === item.iterationId)?.name ?? "Backlog"}</td><td data-label="Tags">{itemTags(item)}</td></tr>)}</tbody></table></div>}
+    {!loading && project && items.length === 0 && <section className="tile empty-state fade-in"><span className="empty-icon"><Icon name="square-kanban" size={22} /></span><h2>{view === "backlog" && stateFilter === "Removed" ? "No removed work items" : "No work items yet"}</h2><p>{canEdit ? "Create a story, a task or a bug to start the board. Link it to a component and it shows up on the topology too." : "When contributors add stories, tasks or bugs, they appear here."}</p>{canEdit && <button className="button primary" onClick={openNew}><Icon name="plus" />Create a work item</button>}</section>}
+    {drawerOpen && <div className="drawer-backdrop" onClick={() => closeDrawer(true)}><aside className="work-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" onClick={event => event.stopPropagation()} onKeyDown={event => { if (event.key === "Escape") closeDrawer(true); }}><div className="drawer-heading"><div><p className="eyebrow">{editing ? `Work item #${editing.sequenceNumber}` : "New work item"}</p><h2 id="drawer-title">{editing ? editing.title : "Create a work item"}</h2></div><button className="button ghost icon-only" autoFocus aria-label={dirty ? "Close and keep the draft" : "Close"} onClick={() => closeDrawer(true)}><Icon name="x" size={18} /></button></div><form noValidate onSubmit={form.onSubmit(submit)} onBlur={form.onBlur} onChange={form.onChange} className="form-panel drawer-form"><fieldset disabled={!canEdit || busy}><div className="form-row"><label>Type<select value={draft.type} onChange={event => changeDraft("type", event.target.value as WorkItemType)}>{types.map(type => <option key={type} value={type}>{typeLabel(type)}</option>)}</select></label><label>Priority<select value={draft.priority} onChange={event => changeDraft("priority", event.target.value as WorkItemPriority)}>{priorities.map(priority => <option key={priority}>{priority}</option>)}</select></label></div><label>Title<input {...form.field("title")} required minLength={2} maxLength={240} value={draft.title} onChange={event => changeDraft("title", event.target.value)} placeholder="What needs to happen?" /><FieldError form={form} name="title" /></label><label>Description<textarea {...form.field("description")} maxLength={10000} value={draft.description} onChange={event => changeDraft("description", event.target.value)} /><FieldError form={form} name="description" /></label><div className="form-row"><label>Assignee<select value={draft.assignedToUserId} onChange={event => changeDraft("assignedToUserId", event.target.value)}><option value="">Unassigned</option>{members.map(member => <option value={member.userId} key={member.userId}>{member.displayName}</option>)}</select></label><label>Iteration<select value={draft.iterationId} onChange={event => changeDraft("iterationId", event.target.value)}><option value="">Backlog</option>{iterations.map(iteration => <option value={iteration.id} key={iteration.id}>{iteration.name}</option>)}</select></label></div><div className="form-row"><label>Story points<input {...form.field("storyPoints")} type="number" min="0" value={draft.storyPoints} onChange={event => changeDraft("storyPoints", event.target.value)} /><FieldError form={form} name="storyPoints" /></label><label>Area<input {...form.field("area")} maxLength={120} value={draft.area} onChange={event => changeDraft("area", event.target.value)} /><FieldError form={form} name="area" /></label></div><div className="form-row"><label>Original estimate (hours)<input {...form.field("originalEstimateHours")} type="number" min="0" step="0.25" data-label="Original estimate" value={draft.originalEstimateHours} onChange={event => changeDraft("originalEstimateHours", event.target.value)} /><FieldError form={form} name="originalEstimateHours" /></label><label>Remaining work (hours)<input {...form.field("remainingWorkHours")} type="number" min="0" step="0.25" data-label="Remaining work" value={draft.remainingWorkHours} onChange={event => changeDraft("remainingWorkHours", event.target.value)} /><FieldError form={form} name="remainingWorkHours" /></label></div><label>Parent work item<select value={draft.parentId} onChange={event => changeDraft("parentId", event.target.value)}><option value="">None</option>{items.filter(item => item.id !== editing?.id).map(item => <option value={item.id} key={item.id}>#{item.sequenceNumber} {item.title}</option>)}</select></label><div className="tag-picker"><strong>Tags</strong><div>{tags.map(tag => <label key={tag.id}><input type="checkbox" checked={draft.tagIds.includes(tag.id)} onChange={event => changeDraft("tagIds", event.target.checked ? [...draft.tagIds, tag.id] : draft.tagIds.filter(id => id !== tag.id))} /><span className={`work-tag tag-${tag.colorToken ?? "slate"}`}>{tag.name}</span></label>)}</div><div className="inline-form"><input {...form.field("newTag")} aria-label="New tag name" maxLength={60} placeholder="New tag" value={newTag} onChange={event => setNewTag(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); void addTag(); } }} /><button className="button" type="button" onClick={() => void addTag()}><Icon name="plus" size={14} />Add tag</button></div><FieldError form={form} name="newTag" /></div><div className="tag-picker"><strong>Linked components</strong><div>{components.map(component => <label key={component.id}><input type="checkbox" checked={draft.componentIds.includes(component.id)} onChange={event => changeDraft("componentIds", event.target.checked ? [...draft.componentIds, component.id] : draft.componentIds.filter(id => id !== component.id))} /><span>{component.name}</span></label>)}</div>{components.length === 0 && <small>Add a component to the project to link work with operations.</small>}</div></fieldset><ErrorNotice error={saveError} what="the work item" />{canEdit && <div className="form-actions"><button className="button" type="button" onClick={() => closeDrawer(false)}>{dirty ? "Discard changes" : "Cancel"}</button><button className="button primary" disabled={busy}>{busy ? "Saving…" : editing ? "Save changes" : "Create work item"}</button></div>}</form>{editing && <section className="activity-list"><h3>Activity</h3>{activity.map(entry => <p key={entry.id}><strong>{entry.type}</strong> {entry.fieldName && `${entry.fieldName}: `}{entry.oldValue && `${activityValue(entry.fieldName, entry.oldValue)} → `}{activityValue(entry.fieldName, entry.newValue)} <small><time dateTime={entry.occurredAt} title={formatWhenFull(entry.occurredAt)}>{formatWhen(entry.occurredAt)}</time></small></p>)}{activity.length === 0 && <p>No activity yet.</p>}</section>}</aside></div>}
   </main>;
 }
