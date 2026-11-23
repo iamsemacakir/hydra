@@ -78,7 +78,7 @@ export function ConnectionStatus() {
   if (!online) {
     return <div className="conn-status" data-tone="warn" role="status">
       <StatusGlyph glyph="triangle" />
-      <span><strong>You're offline.</strong> You're looking at the last data Hydra loaded. Reconnect to load new data and save changes.</span>
+      <span><strong>You&apos;re offline.</strong> You&apos;re looking at the last data Hydra loaded. Reconnect to load new data and save changes.</span>
     </div>;
   }
   if (backOnline) {

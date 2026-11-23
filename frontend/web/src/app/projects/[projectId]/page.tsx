@@ -132,7 +132,7 @@ export default function ProjectPage() {
         </section>
         <section className="panel"><div className="panel-head"><h2>Recent deployments</h2><Link className="panel-link" href={`/projects/${projectId}/deployments`}>All deployments<Icon name="arrow-right" size={14} /></Link></div>
           {!environmentLoaded ? <SkeletonFeed rows={3} /> : deployments.length > 0 ? <ol className="feed">{deployments.map(d => <li className="feed-item" key={d.id}><span className="version">{d.version}</span><div><strong>{componentName(d.componentId)}</strong><small><StatusText look={deploymentLook(d.status)} /> · <time dateTime={d.startedAt} title={formatWhenFull(d.startedAt)}>{formatWhen(d.startedAt)}</time></small></div></li>)}</ol>
-            : <p className="empty-line">No deployments in {environment?.name ?? "this environment"} yet. They appear when your pipeline registers them through Hydra's API.</p>}
+            : <p className="empty-line">No deployments in {environment?.name ?? "this environment"} yet. They appear when your pipeline registers them through Hydra&apos;s API.</p>}
         </section>
       </div>}
 
