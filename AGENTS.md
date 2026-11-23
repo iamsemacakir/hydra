@@ -1111,6 +1111,8 @@ DevOpsPlatform
 
 until a final product name is chosen.
 
+> Decided: the product name is **Hydra** ([ADR 0020](docs/decisions/0020-product-name-hydra.md)). Use Hydra in everything users read; keep `DevOpsPlatform` for the solution, projects and namespaces below.
+
 Backend namespaces:
 
 ```text

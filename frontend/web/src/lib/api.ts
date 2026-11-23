@@ -37,32 +37,132 @@ export type ImportStart = { projectId: string; environmentId: string; connection
 
 export const apiBase = "";
 
-export async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${apiBase}${path}`, { cache: "no-store" });
-  if (response.status === 401 && typeof window !== "undefined") window.location.assign("/signin");
-  if (!response.ok) {
-    const problem = await response.json().catch(() => null) as { detail?: string } | null;
-    throw new Error(problem?.detail ?? `API request failed (${response.status})`);
+/*
+ * Every call to the API goes through `request` below, so all pages get the same behaviour:
+ * - a failed call throws an ApiError that says what kind of problem it was (offline, no access, ...);
+ * - an expired session sends the visitor to sign in and back to the same page afterwards;
+ * - calls in flight are counted for the loading bar and the slow-network notice (background polls are not);
+ * - data prefetched on hover is handed to the first page that asks for it.
+ */
+
+export type ApiErrorKind = "offline" | "network" | "unauthorized" | "forbidden" | "notFound" | "conflict" | "validation" | "server" | "unknown";
+
+/** An API call that did not succeed: what kind of problem it was, and for validation problems, which fields. */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly kind: ApiErrorKind;
+  /** Validation messages by field name, as the API sends them (ASP.NET problem details). */
+  readonly fieldErrors: Record<string, string[]>;
+  constructor(message: string, status: number, kind: ApiErrorKind, fieldErrors: Record<string, string[]> = {}) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.kind = kind;
+    this.fieldErrors = fieldErrors;
   }
-  return response.json() as Promise<T>;
+}
+
+export function errorKind(status: number): ApiErrorKind {
+  if (status === 401) return "unauthorized";
+  if (status === 403) return "forbidden";
+  if (status === 404) return "notFound";
+  if (status === 409) return "conflict";
+  if (status === 400 || status === 422) return "validation";
+  if (status >= 500) return "server";
+  return "unknown";
+}
+
+type ProblemDetails = { title?: string; detail?: string; errors?: Record<string, string[]> };
+type RequestOptions = { quiet?: boolean };
+
+/** Calls in flight and since when the API has been busy. Read by the loading bar and the slow-network notice. */
+export type RequestActivity = { count: number; since: number | null };
+let activity: RequestActivity = { count: 0, since: null };
+const activityListeners = new Set<() => void>();
+
+export function subscribeRequests(listener: () => void): () => void {
+  activityListeners.add(listener);
+  return () => { activityListeners.delete(listener); };
+}
+export function requestActivity(): RequestActivity { return activity; }
+export const idleActivity: RequestActivity = { count: 0, since: null };
+
+function track(delta: 1 | -1) {
+  const count = Math.max(0, activity.count + delta);
+  activity = { count, since: count === 0 ? null : activity.since ?? Date.now() };
+  activityListeners.forEach((listener) => listener());
+}
+
+let leaving = false;
+
+/**
+ * The session ended: sign in again and come back to this page. Nothing typed is lost on the way: the
+ * forms that keep drafts (new project, work item) save them on this device as you type.
+ */
+function sessionExpired() {
+  if (typeof window === "undefined" || leaving) return;
+  leaving = true;
+  const back = `${window.location.pathname}${window.location.search}`;
+  window.location.assign(`/signin?reason=expired&callbackUrl=${encodeURIComponent(back)}`);
+}
+
+async function request<T>(method: string, path: string, body: unknown, jsonHeader: boolean, { quiet = false }: RequestOptions = {}): Promise<T> {
+  if (!quiet) track(1);
+  try {
+    let response: Response;
+    try {
+      response = await fetch(`${apiBase}${path}`, {
+        method,
+        cache: "no-store",
+        headers: jsonHeader ? { "Content-Type": "application/json" } : undefined,
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+    } catch {
+      const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+      throw new ApiError(offline ? "You are offline." : "Hydra's server could not be reached.", 0, offline ? "offline" : "network");
+    }
+    if (response.status === 401) {
+      sessionExpired();
+      throw new ApiError("Your session expired. Sign in again to continue.", 401, "unauthorized");
+    }
+    if (!response.ok) {
+      const problem = await response.json().catch(() => null) as ProblemDetails | null;
+      const message = problem?.detail ?? problem?.title ?? `API request failed (${response.status})`;
+      throw new ApiError(message, response.status, errorKind(response.status), problem?.errors ?? {});
+    }
+    const text = response.status === 204 ? "" : await response.text();
+    return (text ? JSON.parse(text) : undefined) as T;
+  } finally {
+    if (!quiet) track(-1);
+  }
+}
+
+/* Start the work before they ask: a page can be fetched on hover and handed over when it is opened. */
+const PREFETCH_TTL_MS = 15_000;
+const prefetched = new Map<string, { at: number; promise: Promise<unknown> }>();
+
+export function prefetchJson(path: string): void {
+  if (typeof window === "undefined") return;
+  const hit = prefetched.get(path);
+  if (hit && Date.now() - hit.at < PREFETCH_TTL_MS) return;
+  const promise = request<unknown>("GET", path, undefined, false, { quiet: true });
+  promise.catch(() => prefetched.delete(path));
+  prefetched.set(path, { at: Date.now(), promise });
+}
+
+export async function getJson<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const hit = prefetched.get(path);
+  if (hit) {
+    prefetched.delete(path);
+    if (Date.now() - hit.at < PREFETCH_TTL_MS) return hit.promise as Promise<T>;
+  }
+  return request<T>("GET", path, undefined, false, options);
 }
 
 export async function postJson<T>(path: string, body?: unknown): Promise<T> {
-  const response = await fetch(`${apiBase}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
-  if (response.status === 401 && typeof window !== "undefined") window.location.assign("/signin");
-  if (!response.ok) {
-    const problem = await response.json().catch(() => null) as { detail?: string } | null;
-    throw new Error(problem?.detail ?? `API request failed (${response.status})`);
-  }
-  return response.json() as Promise<T>;
+  return request<T>("POST", path, body || undefined, true);
 }
 
 export async function sendJson<T>(method: "POST" | "PUT" | "PATCH" | "DELETE", path: string, body?: unknown): Promise<T> {
-  const response = await fetch(`${apiBase}${path}`, { method, headers: body === undefined ? undefined : { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
-  if (response.status === 401 && typeof window !== "undefined") window.location.assign("/signin");
-  if (!response.ok) {
-    const problem = await response.json().catch(() => null) as { detail?: string } | null;
-    throw new Error(problem?.detail ?? `API request failed (${response.status})`);
-  }
-  return response.status === 204 ? undefined as T : response.json() as Promise<T>;
+  return request<T>(method, path, body, body !== undefined);
 }

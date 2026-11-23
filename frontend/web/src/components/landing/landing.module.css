@@ -1,0 +1,1206 @@
+/*
+ * Hydra landing page.
+ *
+ * Colors, radii and motion come from the --lp-* tokens in src/app/globals.css, where the
+ * light and dark themes are defined on <html>. Nothing here hard-codes a color.
+ *
+ * Conventions
+ * - Hover effects are gated by (hover: hover) and (pointer: fine), so touch screens never get stuck states.
+ * - Motion uses transform and opacity wherever possible, with the ease-out curves from the tokens.
+ * - Width-dependent layout uses container queries: a component adapts to the space it is given,
+ *   not to the viewport.
+ * - prefers-reduced-motion removes all animation at the end of this file.
+ */
+
+/* ------------------------------------------------------------------ */
+/* Page                                                                */
+/* ------------------------------------------------------------------ */
+
+.landing {
+  --lp-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --lp-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  position: relative;
+  min-height: 100dvh;
+  background: var(--lp-bg);
+  color: var(--lp-ink);
+  color-scheme: light;
+  font-family: var(--lp-sans);
+  font-size: 16px;
+  line-height: 26px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: clip;
+}
+
+html[data-landing-theme="dark"] .landing {
+  color-scheme: dark;
+}
+
+/* "Pause animations" in the hero freezes every animation on the page. */
+.landing[data-motion="paused"] *,
+.landing[data-motion="paused"] *::before,
+.landing[data-motion="paused"] *::after {
+  animation-play-state: paused !important;
+}
+
+.landing *,
+.landing *::before,
+.landing *::after {
+  box-sizing: border-box;
+}
+
+/* :where() keeps these resets at zero specificity, so every class below can override them. */
+.landing :where(h1, h2, h3, h4, p, ul, ol, figure) {
+  margin: 0;
+}
+
+.landing :where(ul, ol) {
+  padding: 0;
+  list-style: none;
+}
+
+.landing :where(button) {
+  font: inherit;
+}
+
+/* Beats the global a:focus-visible and button:focus-visible rules in globals.css. */
+.landing :focus-visible {
+  outline: 2px solid var(--lp-ink);
+  outline-offset: 3px;
+}
+
+.main:focus-visible {
+  outline: none;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: var(--lp-radius-sm);
+  background: var(--lp-inverse);
+  color: var(--lp-on-inverse);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  /* Parked above the viewport until it receives keyboard focus. */
+  transform: translateY(calc(-100% - 24px));
+  transition: transform var(--lp-dur-press) var(--lp-ease-out);
+}
+
+.skip:focus-visible {
+  transform: none;
+  outline-color: var(--lp-signal);
+}
+
+.wrap {
+  width: 100%;
+  max-width: 1240px;
+  margin-inline: auto;
+  padding-inline: 32px;
+}
+
+@media (max-width: 640px) {
+  .wrap {
+    padding-inline: 16px;
+  }
+}
+
+/*
+ * Removes the global button look (globals.css styles every <button>) so a button can be styled
+ * from scratch. Declared before the classes that compose it. The global button:hover rule is
+ * more specific than a single class, so each button class below repeats its resting background
+ * on :hover and only then adds its real hover color inside a (hover: hover) block.
+ */
+.reset {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+/*
+ * Gives a control that is visually smaller than 44px a pressable area of at least 44x44, centred on
+ * it, without moving anything. hitY keeps the width, for controls that sit next to each other.
+ */
+.hit {
+  position: relative;
+}
+
+.hit::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100%, 44px);
+  height: max(100%, 44px);
+  transform: translate(-50%, -50%);
+}
+
+.hitY::after {
+  width: 100%;
+}
+
+.stretch {
+  height: 100%;
+}
+
+/* ------------------------------------------------------------------ */
+/* Buttons                                                             */
+/* ------------------------------------------------------------------ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid transparent;
+  border-radius: var(--lp-radius-md);
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    transform var(--lp-dur-press) var(--lp-ease-out),
+    background-color var(--lp-dur-press) var(--lp-ease-out),
+    border-color var(--lp-dur-press) var(--lp-ease-out),
+    color var(--lp-dur-press) var(--lp-ease-out);
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btnPrimary {
+  background: var(--lp-inverse);
+  color: var(--lp-on-inverse);
+}
+
+.btnSecondary {
+  border-color: var(--lp-line-strong);
+  background: var(--lp-surface);
+  color: var(--lp-ink);
+}
+
+.btnGhost {
+  background: transparent;
+  color: var(--lp-ink);
+}
+
+.btnArrow {
+  flex: none;
+  transition: transform var(--lp-dur-ui) var(--lp-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btnPrimary:hover {
+    background: color-mix(in oklab, var(--lp-inverse) 82%, var(--lp-bg));
+  }
+
+  .btnSecondary:hover {
+    border-color: var(--lp-ink-3);
+    background: var(--lp-surface-2);
+  }
+
+  .btnGhost:hover {
+    background: var(--lp-surface-2);
+  }
+
+  .btn:hover .btnArrow {
+    transform: translateX(3px);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Brand                                                               */
+/* ------------------------------------------------------------------ */
+
+.brand {
+  composes: hit hitY;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: var(--lp-radius-sm);
+  color: var(--lp-ink);
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.logoMark {
+  flex: none;
+}
+
+/*
+ * On the narrowest phones (under 360px) the mark alone keeps the whole header, including the theme
+ * toggle, on screen at 320px. The name stays available to screen readers.
+ */
+@media (max-width: 359px) {
+  .brandName {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+.logoPlate {
+  fill: var(--lp-inverse);
+}
+
+.logoStroke {
+  stroke: var(--lp-on-inverse);
+}
+
+.logoDot {
+  fill: var(--lp-on-inverse);
+}
+
+/* ------------------------------------------------------------------ */
+/* Theme toggle                                                        */
+/* ------------------------------------------------------------------ */
+
+.themeToggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--lp-line);
+  border-radius: 999px;
+  background: var(--lp-surface-2);
+}
+
+.themeOption {
+  composes: reset hit hitY;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  color: var(--lp-ink-3);
+  transition:
+    transform var(--lp-dur-press) var(--lp-ease-out),
+    background-color var(--lp-dur-press) var(--lp-ease-out),
+    color var(--lp-dur-press) var(--lp-ease-out);
+}
+
+.themeOption,
+.themeOption:hover {
+  background: transparent;
+}
+
+.themeOption:active {
+  transform: scale(0.92);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .themeOption:hover {
+    background: var(--lp-line);
+    color: var(--lp-ink);
+  }
+}
+
+/*
+ * The selected segment follows the attribute on <html> rather than aria-pressed, so it is
+ * correct in the server HTML and on the very first paint, before React has hydrated.
+ */
+html[data-landing-pref="auto"] .themeOption[data-value="auto"],
+html[data-landing-pref="light"] .themeOption[data-value="light"],
+html[data-landing-pref="dark"] .themeOption[data-value="dark"] {
+  background: var(--lp-inverse);
+  color: var(--lp-on-inverse);
+}
+
+@media (pointer: coarse) {
+  .themeOption {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Navigation                                                          */
+/* ------------------------------------------------------------------ */
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid var(--lp-line);
+  background: color-mix(in oklab, var(--lp-bg) 86%, transparent);
+  -webkit-backdrop-filter: saturate(1.4) blur(14px);
+  backdrop-filter: saturate(1.4) blur(14px);
+}
+
+.navInner {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: 72px;
+}
+
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 24px;
+}
+
+.navLink {
+  composes: hit hitY;
+  padding: 8px 12px;
+  border-radius: var(--lp-radius-sm);
+  color: var(--lp-ink-2);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  transition:
+    background-color var(--lp-dur-press) var(--lp-ease-out),
+    color var(--lp-dur-press) var(--lp-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .navLink:hover {
+    background: var(--lp-surface-2);
+    color: var(--lp-ink);
+  }
+}
+
+.navActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+@media (max-width: 860px) {
+  .navLinks {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .navInner {
+    gap: 12px;
+    height: 64px;
+  }
+
+  .navCta {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Sections                                                            */
+/* ------------------------------------------------------------------ */
+
+.section {
+  padding-block: 96px;
+}
+
+.sectionHeader {
+  display: grid;
+  gap: 14px;
+  max-width: 720px;
+  margin-bottom: 48px;
+}
+
+.eyebrow {
+  font-family: var(--lp-mono);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lp-accent);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: clamp(34px, 4vw, 52px);
+  line-height: 1.06;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.sectionLede {
+  font-size: 18px;
+  line-height: 30px;
+  color: var(--lp-ink-2);
+  text-wrap: pretty;
+}
+
+@media (max-width: 720px) {
+  .section {
+    padding-block: 64px;
+  }
+
+  .sectionHeader {
+    margin-bottom: 32px;
+  }
+
+  .sectionTitle {
+    font-size: 30px;
+    line-height: 1.1;
+  }
+
+  .sectionLede {
+    font-size: 16px;
+    line-height: 26px;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Topology graph (SVG)                                                */
+/* ------------------------------------------------------------------ */
+
+.graph {
+  display: block;
+  width: 100%;
+  max-width: 760px;
+  height: auto;
+  margin-inline: auto;
+  overflow: visible;
+}
+
+.graph[data-layout="tree"] {
+  max-width: 280px;
+}
+
+/* Idle edges: drawn when the map appears, hidden before that. */
+.edgeLine,
+.edgeArrow {
+  fill: none;
+  stroke: var(--lp-edge);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.edgeLine {
+  stroke-dasharray: 1 2;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  transition:
+    opacity 200ms linear,
+    stroke-dashoffset 0s linear 200ms;
+}
+
+.edgeArrow {
+  stroke-linecap: round;
+  opacity: 0;
+  transition: opacity 160ms linear;
+}
+
+.edgeLine[data-state="idle"],
+.edgeLine[data-state="hot"] {
+  stroke-dashoffset: 0;
+  opacity: 1;
+  transition:
+    stroke-dashoffset 640ms var(--lp-ease-out) calc(var(--i) * 70ms + 160ms),
+    opacity 120ms linear calc(var(--i) * 70ms + 160ms);
+}
+
+.edgeArrow[data-state="idle"],
+.edgeArrow[data-state="hot"] {
+  opacity: 1;
+  transition: opacity 160ms linear calc(var(--i) * 70ms + 560ms);
+}
+
+/* Highlighted edges: they grow away from the failing service, one hop after another. */
+.hotLine,
+.hotArrow {
+  fill: none;
+  stroke: var(--lp-signal);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  opacity: 0;
+}
+
+.hotLine {
+  stroke-dasharray: 1 2;
+  stroke-dashoffset: 1;
+  transition:
+    opacity 200ms linear,
+    stroke-dashoffset 0s linear 200ms;
+}
+
+.hotArrow {
+  stroke-linecap: round;
+  transition: opacity 160ms linear;
+}
+
+.hotLine[data-state="hot"] {
+  stroke-dashoffset: 0;
+  opacity: 1;
+  transition:
+    stroke-dashoffset 520ms var(--lp-ease-out) calc(var(--depth) * 260ms + 120ms),
+    opacity 100ms linear calc(var(--depth) * 260ms + 120ms);
+}
+
+.hotArrow[data-state="hot"] {
+  opacity: 1;
+  transition: opacity 120ms linear calc(var(--depth) * 260ms + 120ms);
+}
+
+/* Nodes */
+
+.node {
+  outline: none;
+}
+
+.node:focus-visible {
+  outline: none;
+}
+
+.node[role="button"] {
+  cursor: pointer;
+}
+
+.nodeInner {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    opacity 300ms var(--lp-ease-out),
+    transform 300ms var(--lp-ease-out);
+}
+
+.nodeHit {
+  fill: transparent;
+}
+
+.nodeBox {
+  fill: var(--lp-surface);
+  stroke: var(--lp-line-strong);
+  stroke-width: 1;
+  transition:
+    fill 240ms var(--lp-ease-out),
+    stroke 240ms var(--lp-ease-out);
+}
+
+.nodeLabel {
+  fill: var(--lp-ink);
+  font-family: var(--lp-sans);
+  font-size: 13px;
+  font-weight: 550;
+  transition: fill 240ms var(--lp-ease-out);
+}
+
+.glyphs > * {
+  opacity: 0;
+  transition: opacity 160ms linear;
+}
+
+.glyphUnknown {
+  fill: none;
+  stroke: var(--lp-ink-3);
+  stroke-width: 1.5;
+}
+
+.glyphHealthy {
+  fill: var(--lp-ok);
+}
+
+.glyphDegraded {
+  fill: var(--lp-on-inverse);
+  stroke: var(--lp-on-inverse);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+.glyphAffected {
+  fill: none;
+  stroke: var(--lp-signal);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.nodePulse,
+.nodeSelected,
+.nodeFocus {
+  fill: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.nodePulse {
+  stroke: var(--lp-signal);
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.nodeSelected {
+  stroke: var(--lp-accent);
+  stroke-width: 2;
+  transition: opacity 160ms linear;
+}
+
+.nodeFocus {
+  stroke: var(--lp-accent);
+  stroke-width: 2;
+}
+
+.node[data-selected="true"] .nodeSelected,
+.node:focus-visible .nodeFocus {
+  opacity: 1;
+}
+
+/* Node states. The shape of the glyph and the text label carry the meaning, color only reinforces it. */
+
+.node[data-state="hidden"] .nodeInner {
+  opacity: 0;
+  transform: translateY(6px) scale(0.96);
+}
+
+.node[data-state="unknown"] .nodeLabel {
+  fill: var(--lp-ink-2);
+}
+
+.node[data-state="unknown"] .glyphUnknown,
+.node[data-state="healthy"] .glyphHealthy,
+.node[data-state="dim"] .glyphHealthy,
+.node[data-state="degraded"] .glyphDegraded,
+.node[data-state="direct"] .glyphAffected,
+.node[data-state="indirect"] .glyphAffected {
+  opacity: 1;
+}
+
+.node[data-state="dim"] .nodeInner {
+  opacity: 0.6;
+}
+
+.node[data-state="degraded"] .nodeBox {
+  fill: var(--lp-signal);
+  stroke: var(--lp-signal);
+}
+
+.node[data-state="degraded"] .nodeLabel {
+  fill: var(--lp-on-inverse);
+}
+
+.node[data-state="direct"] .nodeBox,
+.node[data-state="indirect"] .nodeBox {
+  fill: var(--lp-signal-soft);
+  stroke: var(--lp-signal);
+  stroke-width: 1.5;
+}
+
+.node[data-state="indirect"] .nodeBox {
+  stroke-dasharray: 5 3;
+}
+
+/* Reveal order: nodes appear one after another on the Map and Observe phases, and impact travels outward. */
+.node[data-state="unknown"] .nodeInner,
+.node[data-state="unknown"] .nodeBox,
+.node[data-state="healthy"] .nodeInner,
+.node[data-state="healthy"] .nodeBox,
+.node[data-state="healthy"] .nodeLabel,
+.node[data-state="healthy"] .glyphs > * {
+  transition-delay: calc(var(--i) * 55ms);
+}
+
+.node[data-state="direct"] .nodeBox,
+.node[data-state="direct"] .nodeLabel,
+.node[data-state="direct"] .glyphs > * {
+  transition-delay: 280ms;
+}
+
+.node[data-state="indirect"] .nodeBox,
+.node[data-state="indirect"] .nodeLabel,
+.node[data-state="indirect"] .glyphs > * {
+  transition-delay: 540ms;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .node[role="button"]:hover .nodeBox {
+    stroke: var(--lp-accent);
+  }
+}
+
+.node[role="button"]:active .nodeInner {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .node[data-state="degraded"] .nodePulse {
+    animation: pulse 2200ms var(--lp-ease-out) infinite;
+  }
+}
+
+@keyframes pulse {
+  from {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(1.14, 1.7);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Legend and state glyphs                                             */
+/* ------------------------------------------------------------------ */
+
+.legend {
+  display: grid;
+  gap: 8px;
+}
+
+.legendRule {
+  font-family: var(--lp-mono);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--lp-ink-2);
+}
+
+.legendItems {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--lp-ink-2);
+}
+
+.legendItems li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stateGlyph {
+  flex: none;
+  overflow: visible;
+}
+
+.stateGlyph[data-kind="unknown"] circle {
+  fill: none;
+  stroke: var(--lp-ink-3);
+  stroke-width: 1.5;
+}
+
+.stateGlyph[data-kind="healthy"] circle {
+  fill: var(--lp-ok);
+}
+
+.stateGlyph[data-kind="degraded"] path {
+  fill: var(--lp-signal);
+  stroke: var(--lp-signal);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+.stateGlyph[data-kind="affected"] path {
+  fill: none;
+  stroke: var(--lp-signal);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.stateGlyph[data-kind="unhealthy"] path {
+  fill: none;
+  stroke: var(--lp-signal);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* ------------------------------------------------------------------ */
+/* Impact explorer                                                     */
+/* ------------------------------------------------------------------ */
+
+.explorerBand {
+  border-block: 1px solid var(--lp-line);
+  background: var(--lp-surface);
+}
+
+.explorer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+@media (min-width: 1100px) {
+  .explorer {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  }
+}
+
+.graphPanel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--lp-line);
+  border-radius: var(--lp-radius-xl);
+  background:
+    radial-gradient(color-mix(in oklab, var(--lp-ink) 9%, transparent) 1px, transparent 1.3px) 0 0 / 16px 16px,
+    var(--lp-bg);
+  overflow: hidden;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 16px 8px 20px;
+  border-bottom: 1px solid var(--lp-line);
+  background: var(--lp-surface);
+}
+
+.panelHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
+.resetButton {
+  composes: reset hit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--lp-line-strong);
+  border-radius: 999px;
+  background: var(--lp-surface);
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--lp-ink);
+  transition:
+    transform var(--lp-dur-press) var(--lp-ease-out),
+    background-color var(--lp-dur-press) var(--lp-ease-out),
+    opacity var(--lp-dur-press) var(--lp-ease-out);
+}
+
+.resetButton:hover {
+  background: var(--lp-surface);
+}
+
+.resetButton:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.resetButton:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .resetButton:hover:not(:disabled) {
+    background: var(--lp-surface-2);
+  }
+}
+
+.panelBody {
+  container-type: inline-size;
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  padding: 32px 20px;
+}
+
+/* Two renderings of the same graph. The one that fits the panel is shown. */
+.graphWide {
+  display: none;
+}
+
+.graphTree {
+  display: block;
+}
+
+@container (min-width: 600px) {
+  .graphWide {
+    display: block;
+  }
+
+  .graphTree {
+    display: none;
+  }
+}
+
+.panelFooter {
+  background: var(--lp-surface);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--lp-line);
+}
+
+.sampleNote {
+  font-family: var(--lp-mono);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--lp-ink-3);
+}
+
+.result {
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid var(--lp-line);
+  border-radius: var(--lp-radius-xl);
+  background: var(--lp-bg);
+}
+
+.resultBody {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: rise 320ms var(--lp-ease-out) both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.monoLabel {
+  margin-bottom: 8px;
+  font-family: var(--lp-mono);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lp-ink-3);
+}
+
+.selectedRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.selectedName {
+  margin: 0;
+  font-family: var(--lp-mono);
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 500;
+}
+
+.tag {
+  padding: 2px 10px;
+  border: 1px solid var(--lp-line-strong);
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--lp-ink-2);
+}
+
+.resultSummary {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.resultMethod {
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--lp-ink-2);
+}
+
+.resultGroup {
+  display: grid;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--lp-line);
+}
+
+.groupLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--lp-mono);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lp-ink-3);
+}
+
+.groupCount {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--lp-surface-2);
+  text-align: center;
+  color: var(--lp-ink);
+}
+
+.groupList {
+  display: grid;
+  gap: 6px;
+}
+
+.groupList li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--lp-mono);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.groupNone {
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--lp-ink-3);
+}
+
+.pathList {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  font-family: var(--lp-mono);
+  font-size: 13px;
+  line-height: 24px;
+}
+
+.pathList li + li::before {
+  content: "→";
+  margin-inline: 8px;
+  color: var(--lp-ink-3);
+}
+
+.resultEmpty {
+  display: grid;
+  gap: 4px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Footer                                                              */
+/* ------------------------------------------------------------------ */
+
+.footer {
+  padding-block: 48px 40px;
+  border-top: 1px solid var(--lp-line);
+}
+
+.footerTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+}
+
+.footerBrand {
+  display: grid;
+  gap: 12px;
+  max-width: 360px;
+}
+
+.footerTag {
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--lp-ink-2);
+}
+
+.footerLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.footerLink {
+  display: inline-block;
+  padding: 12px;
+  border-radius: var(--lp-radius-sm);
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--lp-ink-2);
+  transition:
+    background-color var(--lp-dur-press) var(--lp-ease-out),
+    color var(--lp-dur-press) var(--lp-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .footerLink:hover {
+    background: var(--lp-surface-2);
+    color: var(--lp-ink);
+  }
+}
+
+.footerLegal {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--lp-line);
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--lp-ink-3);
+}
+
+/* ------------------------------------------------------------------ */
+/* Scroll reveal                                                       */
+/* ------------------------------------------------------------------ */
+
+.reveal[data-reveal="hidden"] {
+  opacity: 0;
+  transform: translateY(16px);
+}
+
+.reveal[data-reveal="shown"] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--lp-dur-reveal) var(--lp-ease-out) var(--reveal-delay, 0ms),
+    transform var(--lp-dur-reveal) var(--lp-ease-out) var(--reveal-delay, 0ms);
+}
+
+/* ------------------------------------------------------------------ */
+/* Reduced motion: the page is fully usable and informative without any animation. */
+/* ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .landing *,
+  .landing *::before,
+  .landing *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,8 +1,8 @@
-# DevOpsPlatform
+# Hydra
 
 Version 3 is being implemented in vertical slices from `AGENTS_V3.md`. The first slice adds persisted read-only repository scans, Docker Compose discovery, preview and apply, reconciliation, dependency evidence, and edge inspection. Open `/projects/import` to try the bundled Commerce System source; see [docs/discovery.md](docs/discovery.md), [docs/security.md](docs/security.md), and [docs/demo.md](docs/demo.md). Remote Git and Azure DevOps connections are not enabled yet. Board tickets can be dragged between state columns, with the Move menu retained for keyboard use.
 
-Version 2 implementation follows [AGENTS_V2.md](AGENTS_V2.md). The incremental slices cover the visual palette, persisted projects, OIDC authentication and ownership, work items, the board, operational links, topology comparisons, and project administration. The light visual tokens are documented in [docs/design-system.md](docs/design-system.md). Existing Version 1 operational features remain available.
+Version 2 implementation follows [AGENTS_V2.md](AGENTS_V2.md). The incremental slices cover the visual palette, persisted projects, OIDC authentication and ownership, work items, the board, operational links, topology comparisons, and project administration. The Hydra design language and its Light and Dark tokens are documented in [docs/design-system.md](docs/design-system.md); every page uses it, including the Keycloak login pages ([docs/authentication.md](docs/authentication.md#login-theme)). The public landing page and the Auto/Light/Dark theme are described in [docs/landing.md](docs/landing.md). For RUP, the style is written up in the [Creative Design Brief](docs/rup/creative-design-brief.md) and every screen and page state is shown in the [Design Comps / User-Interface Prototype](docs/rup/design-comps.md). Existing Version 1 operational features remain available.
 
 Projects can now be created at `/projects/new`. They persist in PostgreSQL, start empty, and can be updated or archived through the API. The additive `ProjectPersistence` migration backfills unique slugs for existing Version 1 projects and keeps the Commerce Demo ID and slug stable. See [docs/api.md](docs/api.md) for the project endpoints.
 
@@ -15,7 +15,7 @@ Topology filters, dependency provenance comparison, and an environment compariso
 Project Components, Environments, and Settings pages and the expanded Commerce Demo are described in [docs/hardening.md](docs/hardening.md).
 The solo Version 2 delivery record is in [docs/iteration-plan-v2.md](docs/iteration-plan-v2.md).
 
-DevOpsPlatform is a diploma MVP for viewing a distributed system as one operational topology. It joins project and environment metadata, components and declared dependencies, deployment history, current runtime state, and operational events. Reverse dependency traversal shows which components may be affected by a failure.
+Hydra is a diploma MVP for viewing a distributed system as one operational topology. It joins project and environment metadata, components and declared dependencies, deployment history, current runtime state, and operational events. Reverse dependency traversal shows which components may be affected by a failure.
 
 The repository is a monorepo. The API is an ASP.NET Core 10 modular monolith with Domain, Application, Infrastructure, Persistence, and API projects. PostgreSQL stores the model; an in-memory SSE bus pushes live updates to a Next.js/React Flow UI. The bus is suitable for one API instance.
 
@@ -51,15 +51,24 @@ In another terminal:
 ```powershell
 cd frontend/web
 npm ci
-$env:AUTH_URL = 'http://localhost:3000'
-$env:AUTH_SECRET = '<random secret of at least 32 bytes>'
-$env:AUTH_KEYCLOAK_ID = 'devops-web'
-$env:AUTH_KEYCLOAK_SECRET = 'devops-local-only'
-$env:AUTH_KEYCLOAK_ISSUER = 'http://keycloak.localhost:8080/realms/devops'
-$env:API_INTERNAL_URL = 'http://localhost:5000'
-$env:NEXT_PUBLIC_ENABLE_DEMO = 'true'
+npm run setup:local
 npm run dev
 ```
+
+`npm run setup:local` creates `frontend/web/.env.local` from `.env.local.example`: the local Keycloak client, the API address and a random `AUTH_SECRET`. Next.js reads that file on every `npm run dev`, so nothing has to be set per terminal. The file is ignored by Git and by Docker builds; running the command again only fills in what is missing.
+
+### Web app only, everything else in Docker
+
+The quickest way to work on the web app: start PostgreSQL, Keycloak and the API in Docker (this needs the root `.env` from the Docker Compose steps), then run Next.js on your machine.
+
+```powershell
+docker compose up -d postgres keycloak backend
+cd frontend/web
+npm run setup:local
+npm run dev
+```
+
+Open <http://localhost:3000/signin>. If sign-in cannot start, the sign-in page says why: in development it names any missing setting and checks that Keycloak can be reached at `http://keycloak.localhost:8080`. If your computer does not resolve `keycloak.localhost`, add `127.0.0.1 keycloak.localhost` to its hosts file.
 
 To apply migrations explicitly (required outside Development), set `ConnectionStrings__Postgres` and run:
 
@@ -79,6 +88,8 @@ No production migration runs automatically. Configure `FrontendOrigin` for the w
 For the Version 2 planning-to-operations flow, open Commerce Demo → Boards, create a Bug, assign it, move it to Active, and link Payment Service. Then open Topology, select Payment Service, inspect the linked work, trigger degradation, run impact analysis, recover, and close the Bug. See [docs/hardening.md](docs/hardening.md) for the complete path.
 
 The buttons call development-only API endpoints. Alternatively, update any component through `PUT /api/projects/{projectId}/environments/{environmentId}/components/{componentId}/runtime`.
+
+To see a much larger system, open **Projects** and click **Create the example** under *Try Hydra with a large example* (also with `NEXT_PUBLIC_ENABLE_DEMO=true`). It creates Northstar Marketplace through the API: 42 components, 70 dependencies, 4 environments, deployment history, recorded health and a full board. See [docs/example-project.md](docs/example-project.md).
 
 ## Checks
 
